@@ -266,7 +266,7 @@ if __name__ == "__main__":
     for problem in problem_files:
         try:
             print(f"\nSolving {problem}")
-            tsp_data = TSPDataLoader(problem)
+            tsp_data = TSPDataLoader("tsp_datasets/" + problem)
             ga = GeneticAlgorithm(tsp_data, pop_size=100, generations=500)
             best_route, best_length = ga.evolve()
             
