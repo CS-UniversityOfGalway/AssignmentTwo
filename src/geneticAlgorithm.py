@@ -3,6 +3,8 @@ from typing import List, Tuple
 import time
 import matplotlib.pyplot as plt
 from tspLoader import TSPDataLoader
+import os
+
 # Tournament selection picks two good parents
 # Crossover creates new tour from parents
 # Mutation MIGHT make a small change to that new tour
@@ -26,6 +28,34 @@ class GeneticAlgorithm:
             indiv = list(range(num_cities))
             random.shuffle(indiv)
             self.population.append(indiv)
+    
+    def plot_performance(self):
+        """
+        Plots the performance metrics of the genetic algorithm
+        Shows both best and average fitness over generations
+        """
+        plt.figure(figsize=(10, 6))
+        generations = range(len(self.best_fitness_history))
+        
+        # Plot best fitness
+        plt.plot(generations, self.best_fitness_history, 'b-', label='Best Tour Length')
+        
+        # Plot average fitness
+        plt.plot(generations, self.avg_fitness_history, 'r--', label='Average Tour Length')
+        
+        plt.xlabel('Generation')
+        plt.ylabel('Tour Length')
+        plt.title(f'GA Performance on {self.tsp.name}')
+        plt.legend()
+        plt.grid(True)
+        
+        # Optinal: Add optimal tour length if available
+        optimal = self.tsp.get_optimal_tour_length()
+        if optimal:
+            plt.axhline(y=optimal, color='g', linestyle=':', label='Optimal Length')
+            plt.legend()
+        
+        plt.show()
     
     # Evalutes how 'good' each soltuon is
     # designed tocnovert out problem form minimization to mazimisation
@@ -222,57 +252,29 @@ class GeneticAlgorithm:
             
             # Print progress
             if gen % 10 == 0:
-                print(f"Generation {gen}: Best tour length = {best_length:.2f}")
+                print(f"Generation {gen}: Best Fitness = {best_length:.2f}")
         
         end_time = time.time()
         print(f"\nTime taken: {end_time - start_time:.2f} seconds")
         return self.get_best_individual()
 
-def plot_performance(self):
-    """
-    Plots the performance metrics of the genetic algorithm
-    Shows both best and average fitness over generations
-    """
-    plt.figure(figsize=(10, 6))
-    generations = range(len(self.best_fitness_history))
-    
-    # Plot best fitness
-    plt.plot(generations, self.best_fitness_history, 'b-', label='Best Tour Length')
-    
-    # Plot average fitness
-    plt.plot(generations, self.avg_fitness_history, 'r--', label='Average Tour Length')
-    
-    plt.xlabel('Generation')
-    plt.ylabel('Tour Length')
-    plt.title(f'GA Performance on {self.tsp.name}')
-    plt.legend()
-    plt.grid(True)
-    
-    # Optinal: Add optimal tour length if available
-    optimal = self.tsp.get_optimal_tour_length()
-    if optimal:
-        plt.axhline(y=optimal, color='g', linestyle=':', label='Optimal Length')
-        plt.legend()
-    
-    plt.show()
 
-
-# Modified main section for testing
 if __name__ == "__main__":
-
-    # Test with different problem sizes
-    problem_files = ["berlin52.tsp", "kroA100.tsp", "pr1002.tsp","test.tsp"]
+    #TEMP: For testing purposes, only run on berlin52 for now, expand to other datasets later
+    problem_files = ["berlin52.tsp"]
     
     for problem in problem_files:
         try:
             print(f"\nSolving {problem}")
-            tsp_data = TSPDataLoader("tsp_datasets/" + problem)
+            dataset_path = "tsp_datasets/"
+            if not os.path.exists(dataset_path + problem):
+                dataset_path = "../tsp_datasets/"
+            tsp_data = TSPDataLoader(dataset_path + problem)
             ga = GeneticAlgorithm(tsp_data, pop_size=100, generations=500)
             best_route, best_length = ga.evolve()
             
-            print(f"Best tour length: {best_length:.2f}")
-            if tsp_data.get_optimal_tour_length():
-                print(f"Optimal tour length: {tsp_data.get_optimal_tour_length()}")
+            print(f"Final Fitness: {best_length:.2f}")
+            print(f"Final Path: {best_route}")
             
             # Plot results
             ga.plot_performance()

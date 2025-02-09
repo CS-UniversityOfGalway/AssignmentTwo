@@ -34,10 +34,6 @@ class TSPDataLoader:
             raise AttributeError("This TSP instance doesn't have coordinate data")
         return {k-1: v for k, v in self.problem.node_coords.items()}
     
-    def get_optimal_tour_length(self) -> float:
-        if hasattr(self.problem, 'optimal_value'):
-            return float(self.problem.optimal_value)
-        return None
     
     def calculate_tour_length(self, tour: list) -> float:
         if len(tour) != self.dimension:
