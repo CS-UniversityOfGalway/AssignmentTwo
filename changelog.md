@@ -5,4 +5,8 @@
 - Split the provided TSP Dataset file into 3 separate TSP files in tsp_datasets
 - Removed the temp test TSP file
 - Created a basic starting point for the readme
-- Fixed spelling mistake in 
+- Fixed spelling mistake in genetic algorithm file name
+- Improved folder access if the tsp files, now can be accessed directly if the search is run in the src folder or outside it
+- Fixed the plot function, now the performance is plotted properly
+- Now printing the best path to console
+- Removed redundant function in tsp loader
