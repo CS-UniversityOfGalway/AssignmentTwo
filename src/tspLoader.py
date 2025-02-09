@@ -42,6 +42,7 @@ class TSPDataLoader:
         total = 0
         for i in range(len(tour)-1):
             total += self.distances[tour[i]][tour[i+1]]
+        #Accounting for starting and ending at the same city
         total += self.distances[tour[-1]][tour[0]]
         return total
 

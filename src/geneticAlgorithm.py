@@ -264,7 +264,7 @@ if __name__ == "__main__":
             if not os.path.exists(dataset_path + problem):
                 dataset_path = "../tsp_datasets/"
             tsp_data = TSPDataLoader(dataset_path + problem)
-            ga = GeneticAlgorithm(tsp_data, pop_size=100, generations=500)
+            ga = GeneticAlgorithm(tsp_data, pop_size=50, generations=5000)
             best_route, best_length = ga.evolve()
             
             print(f"Final Fitness: {best_length:.2f}")
