@@ -49,12 +49,6 @@ class GeneticAlgorithm:
         plt.legend()
         plt.grid(True)
         
-        # Optinal: Add optimal tour length if available
-        optimal = self.tsp.get_optimal_tour_length()
-        if optimal:
-            plt.axhline(y=optimal, color='g', linestyle=':', label='Optimal Length')
-            plt.legend()
-        
         plt.show()
     
     # Evalutes how 'good' each soltuon is
