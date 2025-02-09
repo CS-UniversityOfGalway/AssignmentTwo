@@ -1,4 +1,3 @@
-import numpy as np
 import random
 from typing import List, Tuple
 import time
@@ -261,7 +260,6 @@ def plot_performance(self):
 # Modified main section for testing
 if __name__ == "__main__":
 
-    
     # Test with different problem sizes
     problem_files = ["berlin52.tsp", "kroA100.tsp", "pr1002.tsp","test.tsp"]
     
