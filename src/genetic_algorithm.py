@@ -20,27 +20,27 @@ from tsp_loader import TSPDataLoader
 class GeneticAlgorithm:
     """Main class implementing the genetic algorithm solver for the TSP
     """
-    def __init__(self, tsp_instance, pop_size=50, generations=100,
-                 mutation_rate=0.01, elite_size=2):
+    def __init__(self, tsp_instance, pop_size=50, generations=1000,
+                 mutation_rate=0.01, elite_size=1, crossover_rate=0.8):
         """Initializes the genetic algorithm with the provided parameters
 
         Args:
-            tsp_instance (TSPDataLoader): The TSP data to solve, provided in tsp_datasets folder
-            pop_size (int, optional): Determines how many random solutions will be created in the
-                                      initial population. Defaults to 50.
-            generations (int, optional): How many times the algorithm will evolve. Defaults to 100.
+            tsp_instance (TSPDataLoader): The TSP data to solve
+            pop_size (int, optional): Population size. Defaults to 50.
+            generations (int, optional): Number of generations. Defaults to 1000.
             mutation_rate (float, optional): Chance of mutation. Defaults to 0.01.
-            elite_size (int, optional): How many good solutions to perserve in each gen.
-                                        Defaults to 2.
+            elite_size (int, optional): Number of elite solutions. Defaults to 2.
+            crossover_rate (float, optional): Probability of crossover occurring. Defaults to 0.8.
         """
         self.tsp = tsp_instance
         self.population_size = pop_size
         self.num_generations = generations
         self.mut_rate = mutation_rate
         self.elite = elite_size
-        self.population = [] # Stores current population of solutions/tours
-        self.best_fitness_history = [] # Best fitness across generations is stored
-        self.avg_fitness_history = [] # Average fitness across generations is also stored
+        self.crossover_rate = crossover_rate
+        self.population = []
+        self.best_fitness_history = []
+        self.avg_fitness_history = []
 
 
     def create_initial_population(self):
@@ -296,11 +296,17 @@ class GeneticAlgorithm:
                 parent1 = self.tournament_selection()
                 parent2 = self.tournament_selection()
 
-                # 50% chance of using order crossover, 50% chance of using edge crossover
-                if random.random() < 0.5:
-                    child = self.order_crossover(parent1, parent2)
+                # First check if crossover should occur based on crossover rate
+                if random.random() < self.crossover_rate:
+                    # Then decide which type of crossover to use
+                    if random.random() < 0.5:
+                        child = self.order_crossover(parent1, parent2)
+                    else:
+                        child = self.edge_crossover(parent1, parent2)
                 else:
-                    child = self.edge_crossover(parent1, parent2)
+                    # No crossover, just copy one parent
+                    child = parent1.copy()
+
                 # Small chance of mutation
                 child = self.swap_mutation(child)
                 new_population.append(child)
@@ -310,7 +316,7 @@ class GeneticAlgorithm:
 
             # Record statistics
             # Keep track of our best tour and average performance
-            current_gen_best_length = self.get_best_individual()
+            _,current_gen_best_length = self.get_best_individual()
             # Append the best fitness of the current generation to the history
             self.best_fitness_history.append(current_gen_best_length)
 
@@ -341,8 +347,9 @@ if __name__ == "__main__":
                 DATASET_PATH = "../tsp_datasets/"
             # Parse tsp data from file
             tsp_data = TSPDataLoader(DATASET_PATH + problem)
-            # Create an instance of the genetic algorithm
-            ga = GeneticAlgorithm(tsp_data, pop_size=50, generations=5000)
+            # Create an instance of the genetic algorithm chosen with the parameters
+            ga = GeneticAlgorithm(tsp_data, pop_size=500, generations=1000, mutation_rate=0.01,
+                                  crossover_rate=1)
             # Best route and length recorded
             best_route, best_length = ga.evolve()
 

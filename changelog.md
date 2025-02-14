@@ -16,3 +16,4 @@
 - Removed redundant comments
 - Added function doc strings
 - Applied linting (Pylint) across genetic_algorithm.py
+- Added crossover rate
