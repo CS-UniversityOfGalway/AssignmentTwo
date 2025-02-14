@@ -310,7 +310,7 @@ class GeneticAlgorithm:
 
             # Record statistics
             # Keep track of our best tour and average performance
-            current_gen_best_length = self.get_best_individual()
+            _, current_gen_best_length = self.get_best_individual()
             # Append the best fitness of the current generation to the history
             self.best_fitness_history.append(current_gen_best_length)
 
