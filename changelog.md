@@ -10,3 +10,8 @@
 - Fixed the plot function, now the performance is plotted properly
 - Now printing the best path to console
 - Removed redundant function in tsp loader
+
+### 14/2/25
+- Removed redundant comments
+- Started to add function doc strings
+- Started to apply linting (Pylint) across genetic_algorithm.py

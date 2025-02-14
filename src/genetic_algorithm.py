@@ -1,64 +1,113 @@
-import random
-from typing import List, Tuple
-import time
-import matplotlib.pyplot as plt
-from tspLoader import TSPDataLoader
-import os
+"""
+Genetic Algorithm TSP Solver for CT421 Project 1
 
-# Tournament selection picks two good parents
-# Crossover creates new tour from parents
-# Mutation MIGHT make a small change to that new tour
-# This new tour (mutated or not) joins the population
+Some general overview comments:
+- Tournament selection picks two good parents
+- Crossover creates new tour from parents
+- Mutation MIGHT make a small change to that new tour
+- This new tour (mutated or not) joins the population
+
+Classes:
+    GeneticAlgorithm: Main class implementing the genetic algorithm solver
+
+Functions:
+    __init__: Initializes the genetic algorithm with the provided parameters
+    create_initial_population: Creates the initial population of potential solutions that the GA 
+                               will evolve over time
+    plot_performance: Plots the performance metrics of the genetic algorithm
+    calculate_fitness: Evalutes how 'good' each soluton is designed to covert our problem from
+                       minimization to maximisation length.
+    tournament_selection: Essentially just picks x amount of random tours(solutions) and returns
+                          the best one
+    order_crossover: Order crossover is called after tournament selection returns two parents with
+                     suitable fitness
+    edge_crossover: Edge crossover is called after tournament selection returns two parents with
+                    suitable fitness
+    swap_mutation: Gives small random changes to potentially introduce new good solutions
+    inversion_mutation: Inverts a subsection of the tour if random chance hits
+    get_best_individual: Returns the best individual from the population
+    evolve: Main function that evolves the population over generations and returns the best 
+            solution
+"""
+import random
+import os
+import time
+from typing import List, Tuple
+import matplotlib.pyplot as plt
+from EvolutionarySearch.src.tsp_loader import TSPDataLoader
+
 class GeneticAlgorithm:
-    def __init__(self, tsp_data, pop_size=50, generations=100, 
+    """Main class implementing the genetic algorithm solver for the TSP
+    """
+    def __init__(self, tsp_instance, pop_size=50, generations=100,
                  mutation_rate=0.01, elite_size=2):
-        self.tsp = tsp_data
+        """Initializes the genetic algorithm with the provided parameters
+
+        Args:
+            tsp_instance (TSPDataLoader): The TSP data to solve, provided in tsp_datasets folder
+            pop_size (int, optional): Determines how many random solutions will be created in the
+                                      initial population. Defaults to 50.
+            generations (int, optional): How many times the algorithm will evolve. Defaults to 100.
+            mutation_rate (float, optional): Chance of mutation. Defaults to 0.01.
+            elite_size (int, optional): How many good solutions to perserve in each gen.
+                                        Defaults to 2.
+        """
+        self.tsp = tsp_instance
         self.population_size = pop_size
         self.num_generations = generations
         self.mut_rate = mutation_rate
         self.elite = elite_size
-        self.population = []
-        self.best_fitness_history = []
-        self.avg_fitness_history = []
-        
-    def create_initial_population(self) -> None:
-        num_cities = self.tsp.dimension
-        for _ in range(self.population_size):
-            # Create random permutation of cities
-            indiv = list(range(num_cities))
-            random.shuffle(indiv)
-            self.population.append(indiv)
-    
-    def plot_performance(self):
+        self.population = [] # Stores current population of solutions/tours
+        self.best_fitness_history = [] # Best fitness across generations is stored
+        self.avg_fitness_history = [] # Average fitness across generations is also stored
+
+    def create_initial_population(self):
+        """Creates the initial population of potential solutions that the GA will evolve over time
         """
-        Plots the performance metrics of the genetic algorithm
+        num_cities = self.tsp.dimension # Parses the number of cities from the TSP data
+        for _ in range(self.population_size): # Creates a population of random tours, defined by
+                                              # the provided population size
+            indiv = list(range(num_cities)) # Each city is represented by a unique integer
+            random.shuffle(indiv) # Randomly shuffles the order of the cities to create a
+                                  # random tour
+            self.population.append(indiv) # Adds the tour to the population list
+
+    def plot_performance(self):
+        """Plots the performance metrics of the genetic algorithm
         Shows both best and average fitness over generations
         """
         plt.figure(figsize=(10, 6))
+        # Sequence of from 0 to number of generations that have the best fitness
         generations = range(len(self.best_fitness_history))
-        
+
         # Plot best fitness
         plt.plot(generations, self.best_fitness_history, 'b-', label='Best Tour Length')
-        
+
         # Plot average fitness
         plt.plot(generations, self.avg_fitness_history, 'r--', label='Average Tour Length')
-        
+
         plt.xlabel('Generation')
         plt.ylabel('Tour Length')
         plt.title(f'GA Performance on {self.tsp.name}')
         plt.legend()
         plt.grid(True)
-        
+
         plt.show()
-    
-    # Evalutes how 'good' each soltuon is
-    # designed tocnovert out problem form minimization to mazimisation
-    # we want to minimize tour length
-    # used also to decide which soltutions to survvie this generation, which become parents, whats our best solution so far.
+
     def calculate_fitness(self, individual: List[int]) -> float:
+        """Evalutes how 'good' each soluton is designed to covert our problem from minimization
+        to maximisation length. We want to minimize tour length used, also to decide which solutions
+        that survive this generation, which become parents ands whats our best solution so far.
+
+        Returns:
+            float: Fitness score of the tour. Higher values indicate better solutions
+              - Returns 1/tour_length to convert minimization to maximization problem
+              - Returns infinity if tour length is zero (invalid tour)
+        """
         try:
-            return 1 / self.tsp.calculate_tour_length(individual)
-        except ZeroDivisionError:
+            return 1 / self.tsp.calculate_tour_length(individual) # Minimization -> maximization
+        except ZeroDivisionError: # If this exception is thrown, the tour is considered invalid and
+                                  # an infinite fitness is returned (Worst possible fitness)
             return float('inf')
     
     def tournament_selection(self, tournament_size: int = 3) -> List[int]:
@@ -70,8 +119,8 @@ class GeneticAlgorithm:
         # therefore the overall goal of the tournament selection is to pick parents for breeding
         tournament = random.sample(self.population, tournament_size)
         return max(tournament, key=self.calculate_fitness)
-    # Order crossover is called after tournament selection returns two parents with suitable fitness
     
+    # Order crossover is called after tournament selection returns two parents with suitable fitness
     #Order crossover is good because
     # It preseves chunks of consecutive cities which may be 'good-routes'
     def order_crossover(self, parent1: List[int], parent2: List[int]) -> List[int]:
@@ -227,9 +276,9 @@ class GeneticAlgorithm:
                 
                 # 50% chance of using order crossover, 50% chance of using PMX crossover
                 if random.random() < 0.5:  
-                 child = self.order_crossover(parent1, parent2)
+                    child = self.order_crossover(parent1, parent2)
                 else:
-                 child = self.edge_crossover(parent1, parent2)
+                    child = self.edge_crossover(parent1, parent2)
                 child = self.swap_mutation(child)
                 new_population.append(child)
             
@@ -238,15 +287,15 @@ class GeneticAlgorithm:
             
             # Record statistics
             # Keep track of our best tour and average performance
-            best_tour, best_length = self.get_best_individual()
-            self.best_fitness_history.append(best_length)
+            current_gen_best_length = self.get_best_individual()
+            self.best_fitness_history.append(current_gen_best_length)
             
             fitnesses = [1/self.calculate_fitness(ind) for ind in self.population]
             self.avg_fitness_history.append(sum(fitnesses)/len(fitnesses))
             
             # Print progress
             if gen % 10 == 0:
-                print(f"Generation {gen}: Best Fitness = {best_length:.2f}")
+                print(f"Generation {gen}: Best Fitness = {current_gen_best_length:.2f}")
         
         end_time = time.time()
         print(f"\nTime taken: {end_time - start_time:.2f} seconds")
@@ -256,7 +305,6 @@ class GeneticAlgorithm:
 if __name__ == "__main__":
     #TEMP: For testing purposes, only run on berlin52 for now, expand to other datasets later
     problem_files = ["berlin52.tsp"]
-    
     for problem in problem_files:
         try:
             print(f"\nSolving {problem}")
@@ -273,6 +321,9 @@ if __name__ == "__main__":
             # Plot results
             ga.plot_performance()
             
-        except Exception as e:
-            print(f"Error processing {problem}: {str(e)}")
+        except FileNotFoundError:
+            print(f"Could not find dataset file for {problem}")
+            continue
+        except ValueError as e:
+            print(f"Invalid data format in {problem}: {str(e)}")
             continue
