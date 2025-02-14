@@ -12,6 +12,7 @@
 - Removed redundant function in tsp loader
 
 ### 14/2/25
+#### Tim
 - Removed redundant comments
-- Started to add function doc strings
-- Started to apply linting (Pylint) across genetic_algorithm.py
+- Added function doc strings
+- Applied linting (Pylint) across genetic_algorithm.py
