@@ -17,3 +17,10 @@
 - Added function doc strings
 - Applied linting (Pylint) across genetic_algorithm.py
 - Added crossover rate
+
+### 15/2/25
+#### Tim
+- Added ability to grid search a range of parameters
+- Multiple runs are now made
+- Results are output to a csv file
+- Refactoring of main entry function

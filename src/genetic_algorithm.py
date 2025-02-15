@@ -11,17 +11,19 @@ Classes:
     GeneticAlgorithm: Main class implementing the genetic algorithm solver
 """
 import random
-import os
+import itertools
 import time
+import os
 from typing import List, Tuple
 import matplotlib.pyplot as plt
+import pandas as pd
 from tsp_loader import TSPDataLoader
 
 class GeneticAlgorithm:
     """Main class implementing the genetic algorithm solver for the TSP
     """
     def __init__(self, tsp_instance, pop_size=50, generations=1000,
-                 mutation_rate=0.01, elite_size=1, crossover_rate=0.8):
+                 mutation_rate=0.01, crossover_rate=0.8):
         """Initializes the genetic algorithm with the provided parameters
 
         Args:
@@ -36,11 +38,10 @@ class GeneticAlgorithm:
         self.population_size = pop_size
         self.num_generations = generations
         self.mut_rate = mutation_rate
-        self.elite = elite_size
+        self.elite = 2 # Number of elite solutions to keep
         self.crossover_rate = crossover_rate
         self.population = []
         self.best_fitness_history = []
-        self.avg_fitness_history = []
 
 
     def create_initial_population(self):
@@ -243,13 +244,10 @@ class GeneticAlgorithm:
         generations = range(len(self.best_fitness_history))
 
         # Plot best fitness
-        plt.plot(generations, self.best_fitness_history, 'b-', label='Best Tour Length')
-
-        # Plot average fitness
-        plt.plot(generations, self.avg_fitness_history, 'r--', label='Average Tour Length')
+        plt.plot(generations, self.best_fitness_history, 'b-', label='Best Fitness')
 
         plt.xlabel('Generation')
-        plt.ylabel('Tour Length')
+        plt.ylabel('Fitness')
         plt.title(f'GA Performance on {self.tsp.name}')
         plt.legend()
         plt.grid(True)
@@ -320,10 +318,6 @@ class GeneticAlgorithm:
             # Append the best fitness of the current generation to the history
             self.best_fitness_history.append(current_gen_best_length)
 
-            # Get all fitnesses in the population and find average
-            fitnesses = [1/self.calculate_fitness(ind) for ind in self.population]
-            self.avg_fitness_history.append(sum(fitnesses)/len(fitnesses))
-
             # Print progress
             if gen % 10 == 0:
                 print(f"Generation {gen}: Best Fitness = {current_gen_best_length:.2f}")
@@ -334,34 +328,145 @@ class GeneticAlgorithm:
         return self.get_best_individual() # return best tour and its length
 
 
+def grid_search(tsp_instance,
+                population_sizes: List[int],
+                crossover_chance: List[float],
+                mutation_chance: List[float],
+                generations: int) -> pd.DataFrame:
+    """
+    Performs grid search over GA parameters and returns results as DataFrame.
+    
+    Args:
+        tsp_instance: TSP problem instance
+        pop_sizes: List of population sizes to test
+        crossover_rates: List of crossover rates to test
+        mutation_rates: List of mutation rates to test
+        generations: Number of generations to run each test
+    
+    Returns:
+        Tuple containing:
+        - DataFrame with all run results
+        - Dict with best parameters found
+        - Float of best tour length
+        - Float of runtime for best tour
+        - Float of total grid search runtime
+    """
+    grid_search_results = [] # List to store results, will be converted to DataFrame later
+    total_start_time = time.time()
+    curr_best_tour_length = float('inf')
+    curr_best_run_time = None
+    best_params = None
+
+    # Generate all parameter combinations
+    param_combinations = list(itertools.product(
+        population_sizes,
+        crossover_chance,
+        mutation_chance
+    ))
+
+    total_runs = len(param_combinations)
+    current_run = 0
+
+    #Loop through all parameter combinations
+    for population_size, c_rate, m_rate in param_combinations:
+        current_run += 1
+        print(f"\nRun {current_run}/{total_runs}")
+        print(f"Testing: pop={population_size}, cross={c_rate}, mut={m_rate}")
+
+        # Create and run a GA with current parameters
+        ga = GeneticAlgorithm(
+            tsp_instance,
+            pop_size=population_size,
+            generations=generations,
+            mutation_rate=m_rate,
+            crossover_rate=c_rate
+        )
+
+        start_time = time.time()
+        _, tour_length = ga.evolve()
+        run_time = time.time() - start_time
+
+        # Update best tour length and parameters if needed
+        # (i.e if the current run produced a better tour)
+        if tour_length < curr_best_tour_length:
+            curr_best_tour_length = tour_length
+            curr_best_run_time = run_time
+            best_params = {
+                'population_size': population_size,
+                'crossover_rate': c_rate,
+                'mutation_rate': m_rate
+            }
+
+        # Record results
+        grid_search_results.append({
+            'population_size': population_size,
+            'crossover_rate': c_rate,
+            'mutation_rate': m_rate,
+            'run_number': current_run,
+            'best_tour_length': curr_best_tour_length,
+            'computation_time': run_time
+        })
+
+    # Convert results to DataFrame
+    results_df = pd.DataFrame(grid_search_results)
+    curr_total_runtime = time.time() - total_start_time
+
+    # Get best run histories for plotting
+    best_run_histories = {
+        'best_fitness_history': ga.best_fitness_history,
+    }
+
+    best_ga = GeneticAlgorithm(tsp_instance) # Create GA object for plotting
+    # Set the best run history to plot
+    best_ga.best_fitness_history = best_run_histories['best_fitness_history']
+    best_ga.plot_performance()
+
+    return results_df, best_params, curr_best_tour_length, curr_best_run_time, curr_total_runtime
+
+
 if __name__ == "__main__":
-    #TEMP: For testing purposes, only run on berlin52 for now, expand to other datasets later
-    problem_files = ["berlin52.tsp"]
-    # Run through each problem file
-    for problem in problem_files:
-        try:
-            print(f"\nSolving {problem}")
-            DATASET_PATH = "tsp_datasets/"
-            # Check if the dataset is in the default location, if not, try the parent directory
-            if not os.path.exists(DATASET_PATH + problem):
-                DATASET_PATH = "../tsp_datasets/"
-            # Parse tsp data from file
-            tsp_data = TSPDataLoader(DATASET_PATH + problem)
-            # Create an instance of the genetic algorithm chosen with the parameters
-            ga = GeneticAlgorithm(tsp_data, pop_size=500, generations=1000, mutation_rate=0.01,
-                                  crossover_rate=1)
-            # Best route and length recorded
-            best_route, best_length = ga.evolve()
+    # --- User-defined parameters ---
+    # Path to the TSP dataset folder
+    DATASET_PATH = "tsp_datasets/"
 
-            print(f"Final Fitness: {best_length:.2f}")
-            print(f"Final Path: {best_route}")
+    # !!Modify this to test different TSP instances!!
+    PROBLEM_FILE = "berlin52.tsp"
 
-            # Plot results
-            ga.plot_performance()
+    # !!Modify this to test generation amounts!!
+    GENS = 1000
 
-        except FileNotFoundError:
-            print(f"Could not find dataset file for {problem}")
-            continue
-        except ValueError as e:
-            print(f"Invalid data format in {problem}: {str(e)}")
-            continue
+    # !!Define parameter ranges to test (MODIFY AS NEEDED)!!
+    pop_sizes = [50, 100, 200]
+    crossover_rates = [0.7, 0.8, 0.9]
+    mutation_rates = [0.01, 0.02, 0.05]
+    #----------------------------------
+
+    # Check if the dataset is in the default location, if not, try the parent directory
+    if not os.path.exists(DATASET_PATH):
+        DATASET_PATH = "../tsp_datasets/"
+
+    print(f"\nSolving {PROBLEM_FILE}")
+
+    # Parse tsp data from file
+    tsp_data = TSPDataLoader(DATASET_PATH + PROBLEM_FILE)
+
+    # Run grid search
+    results, best_config, best_tour_length, best_run_time, total_runtime = grid_search(
+        tsp_data,
+        population_sizes=pop_sizes,
+        crossover_chance=crossover_rates,
+        mutation_chance=mutation_rates,
+        generations = GENS
+    )
+
+    # Save results to a csv file
+    results.to_csv('grid_search_results.csv', index=False)
+
+    # Print best configuration
+    print("\nBest configuration found:")
+    print(f"Population Size: {best_config['population_size']}")
+    print(f"Crossover Rate: {best_config['crossover_rate']:.2f}")
+    print(f"Mutation Rate: {best_config['mutation_rate']:.3f}")
+    print(f"Best Tour Length: {best_tour_length:.2f}")
+    print(f"Best Fitness Run Time: {best_run_time:.2f}s")
+    print(f"\nTotal Grid Search Runtime: {total_runtime:.2f}s")

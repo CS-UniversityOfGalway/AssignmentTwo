@@ -15,6 +15,9 @@ To install the necessary dependencies, run:
 pip install -r requirements.txt
 ```
 
+## Linting
+Linted with Microsoft's PyLint
+
 ## Usage
 To run the evolutionary search, execute:
 ```bash
