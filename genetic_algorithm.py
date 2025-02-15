@@ -168,8 +168,14 @@ class GeneticAlgorithm:
         child = [-1] * size # Creates empty child tour filled with -1
         child[start:end] = parent1[start:end] # Copies segments from parent1 into new child tour
                                               # using the random segment genetated
+
         # Creates an array which has ciiies that are not in the child tour
-        remaining_cities = [x for x in parent2 if x not in set(parent1[start:end])]
+        used_cities = set(parent1[start:end])
+        remaining_cities = []
+        for city in parent2:
+            if city not in used_cities:
+                remaining_cities.append(city)
+
         # for loop to fill the remaining spots in the child tour with new cities from parent2
         j = 0
         for i in range(size):
@@ -198,17 +204,23 @@ class GeneticAlgorithm:
             adjacent cities are available, it selects a random unused city.
         """
         size = len(parent1) # Get the length of parent1's tour
+
+        # position lookup
+        p1_pos = {city: idx for idx, city in enumerate(parent1)}
+        p2_pos = {city: idx for idx, city in enumerate(parent2)}
+
         child = [-1] * size # Creates empty child tour filled with -1
 
         # Start with random city from parten 1 as first city in child
         current = random.choice(parent1)
         child[0] = current
+        used = {current}
 
         # fill the rest of the child tour
         for i in range(1, size):
             # Parse the index of the current city in child in both parents
-            p1_idx = parent1.index(current)
-            p2_idx = parent2.index(current)
+            p1_idx = p1_pos[current]
+            p2_idx = p2_pos[current]
 
             # Next cities are the ones that come after the current city in both parents.
             # 1 is added to the parsed indexes from the parents.
@@ -228,10 +240,11 @@ class GeneticAlgorithm:
             else:
                 # If both are in child, all unused cities are parsed only from parent1 since they
                 # contain the same cities in different orders
-                unused = [x for x in parent1 if x not in child]
-                current = random.choice(unused) # random city from list of unused cities is chosen
+                unused = list(set(range(size)) - used)
+                current = random.choice(unused)
 
             child[i] = current
+            used.add(current)
 
         return child
 
@@ -452,7 +465,7 @@ def grid_search(tsp_instance,
             'crossover_rate': c_rate,
             'mutation_rate': m_rate,
             'run_number': current_run,
-            'best_tour_length': curr_best_tour_length,
+            'best_tour_length': tour_length,
             'computation_time': run_time
         })
 
