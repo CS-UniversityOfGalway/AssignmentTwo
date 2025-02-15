@@ -13,7 +13,6 @@ Classes:
 import random
 import itertools
 import time
-import os
 from typing import List, Tuple
 import tsplib95
 import matplotlib.pyplot as plt
@@ -170,7 +169,7 @@ class GeneticAlgorithm:
         child[start:end] = parent1[start:end] # Copies segments from parent1 into new child tour
                                               # using the random segment genetated
         # Creates an array which has ciiies that are not in the child tour
-        remaining_cities = [x for x in parent2 if x not in child[start:end]]
+        remaining_cities = [x for x in parent2 if x not in set(parent1[start:end])]
         # for loop to fill the remaining spots in the child tour with new cities from parent2
         j = 0
         for i in range(size):
@@ -345,9 +344,14 @@ class GeneticAlgorithm:
                     # No crossover, just copy one parent
                     child = parent1.copy()
 
-                # Small chance of mutation
-                child = self.swap_mutation(child)
-                new_population.append(child)
+                # Apply mutation with random choice between operators
+                if random.random() < self.mut_rate:
+                    # Randomly choose between swap and inversion mutation
+                    if random.random() < 0.5:
+                        child = self.swap_mutation(child)
+                    else:
+                        child = self.inversion_mutation(child)
+                    new_population.append(child)
 
             # Replace old population with new one.
             self.population = new_population
@@ -396,6 +400,7 @@ def grid_search(tsp_instance,
     curr_best_tour_length = float('inf')
     curr_best_run_time = None
     best_params = None
+    best_fitness_history = None  # Track best fitness history
 
     # Generate all parameter combinations
     param_combinations = list(itertools.product(
@@ -439,6 +444,7 @@ def grid_search(tsp_instance,
                 'crossover_rate': c_rate,
                 'mutation_rate': m_rate
             }
+            best_fitness_history = ga.best_fitness_history.copy()# Save history of best run
 
         # Record results
         grid_search_results.append({
@@ -454,14 +460,9 @@ def grid_search(tsp_instance,
     results_df = pd.DataFrame(grid_search_results)
     curr_total_runtime = time.time() - total_start_time
 
-    # Get best run histories for plotting
-    best_run_histories = {
-        'best_fitness_history': ga.best_fitness_history,
-    }
-
-    best_ga = GeneticAlgorithm(tsp_instance) # Create GA object for plotting
+    best_ga = GeneticAlgorithm(tsp_data) # Create GA object for plotting
     # Set the best run history to plot
-    best_ga.best_fitness_history = best_run_histories['best_fitness_history']
+    best_ga.best_fitness_history = best_fitness_history
     best_ga.plot_performance()
 
     return results_df, best_params, curr_best_tour_length, curr_best_run_time, curr_total_runtime
@@ -483,10 +484,6 @@ if __name__ == "__main__":
     crossover_rates = [0.7, 0.8, 0.9]
     mutation_rates = [0.01, 0.02, 0.05]
     #----------------------------------
-
-    # Check if the dataset is in the default location, if not, try the parent directory
-    if not os.path.exists(DATASET_PATH):
-        DATASET_PATH = "../tsp_datasets/"
 
     print(f"\nSolving {PROBLEM_FILE}")
 

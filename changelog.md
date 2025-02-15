@@ -25,3 +25,5 @@
 - Results are output to a csv file
 - Refactoring of main entry function
 - Integrated TSPLoader aspects into main function
+- Optimization and logic fixes
+- Implemented a chance for Inversion swapping to be used
