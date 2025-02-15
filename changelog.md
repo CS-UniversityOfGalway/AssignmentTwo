@@ -24,3 +24,4 @@
 - Multiple runs are now made
 - Results are output to a csv file
 - Refactoring of main entry function
+- Integrated TSPLoader aspects into main function

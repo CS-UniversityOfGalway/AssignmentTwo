@@ -15,26 +15,26 @@ import itertools
 import time
 import os
 from typing import List, Tuple
+import tsplib95
 import matplotlib.pyplot as plt
 import pandas as pd
-from tsp_loader import TSPDataLoader
 
 class GeneticAlgorithm:
     """Main class implementing the genetic algorithm solver for the TSP
     """
-    def __init__(self, tsp_instance, pop_size=50, generations=1000,
+    def __init__(self, tsp_data, pop_size=50, generations=1000,
                  mutation_rate=0.01, crossover_rate=0.8):
         """Initializes the genetic algorithm with the provided parameters
 
         Args:
-            tsp_instance (TSPDataLoader): The TSP data to solve
+            tsp_data (tsplib95): The TSP data to solve
             pop_size (int, optional): Population size. Defaults to 50.
             generations (int, optional): Number of generations. Defaults to 1000.
             mutation_rate (float, optional): Chance of mutation. Defaults to 0.01.
             elite_size (int, optional): Number of elite solutions. Defaults to 2.
             crossover_rate (float, optional): Probability of crossover occurring. Defaults to 0.8.
         """
-        self.tsp = tsp_instance
+        self.tsp = tsp_data
         self.population_size = pop_size
         self.num_generations = generations
         self.mut_rate = mutation_rate
@@ -42,6 +42,27 @@ class GeneticAlgorithm:
         self.crossover_rate = crossover_rate
         self.population = []
         self.best_fitness_history = []
+        # We are precomputing the distance matriox for faster fitness calculation later
+        self.distance_matrix = self._precompute_distances()
+
+    def _precompute_distances(self):
+        """Precompute distances between all cities
+        
+        Returns:
+            List[List[int]]: A 2D list of distances between all cities
+        """
+        dim = self.tsp.dimension # Number of cities in problem
+        # Create a 2D matrix of zeros to store distances, with dimensions equal to number of cities
+        matrix = [[0 for _ in range(dim)] for _ in range(dim)]
+        # Iterting through all pairs of cities
+        for i in range(1, dim + 1):
+            for j in range(1, dim + 1):
+                #No need to calculate distance between same city
+                if i != j:
+                    # Uusing TSPLIB95's get_weight method to get the distance between two cities
+                    # Taking one away from the indexes for basing the indexes from 0
+                    matrix[i-1][j-1] = self.tsp.get_weight(i, j)
+        return matrix
 
 
     def create_initial_population(self):
@@ -50,10 +71,29 @@ class GeneticAlgorithm:
         num_cities = self.tsp.dimension # Parses the number of cities from the TSP data
         for _ in range(self.population_size): # Creates a population of random tours, defined by
                                               # the provided population size
-            indiv = list(range(num_cities)) # Each city is represented by a unique integer
+            indiv = list(range(num_cities))# Each city is represented by a unique integer
             random.shuffle(indiv) # Randomly shuffles the order of the cities to create a
                                   # random tour
             self.population.append(indiv) # Adds the tour to the population list
+
+
+    def calculate_tour_length(self, tour: list) -> float:
+        """Calculate the total length of the tour.
+            
+        Args:
+            tour (list): A list of city indices, in order that the cities are visited in the tour
+
+        Returns:
+            float: Total tour length, summed together city to city
+        """
+        total = 0
+        # Iterating through all cities pairs in the tour
+        for i in range(len(tour) - 1):
+            # add distances from on to the next city and add to totalk
+            total += self.distance_matrix[tour[i]][tour[i + 1]]
+        # Add the distance from the last city back to the first city
+        total += self.distance_matrix[tour[-1]][tour[0]]
+        return total
 
 
     def calculate_fitness(self, individual: List[int]) -> float:
@@ -68,7 +108,7 @@ class GeneticAlgorithm:
         """
         try:
             # Coverting distance to fitness value
-            return 1 / self.tsp.calculate_tour_length(individual) # Minimization -> maximization
+            return 1 / self.calculate_tour_length(individual) # Minimization -> maximization
         except ZeroDivisionError: # If this exception is thrown, the tour is considered invalid and
                                   # an infinite fitness is returned (Worst possible fitness)
             return float('inf')
@@ -367,6 +407,9 @@ def grid_search(tsp_instance,
     total_runs = len(param_combinations)
     current_run = 0
 
+    # Load the TSP instance once before the loop
+    tsp_data = tsplib95.load(tsp_instance)
+
     #Loop through all parameter combinations
     for population_size, c_rate, m_rate in param_combinations:
         current_run += 1
@@ -375,7 +418,7 @@ def grid_search(tsp_instance,
 
         # Create and run a GA with current parameters
         ga = GeneticAlgorithm(
-            tsp_instance,
+            tsp_data,
             pop_size=population_size,
             generations=generations,
             mutation_rate=m_rate,
@@ -447,12 +490,9 @@ if __name__ == "__main__":
 
     print(f"\nSolving {PROBLEM_FILE}")
 
-    # Parse tsp data from file
-    tsp_data = TSPDataLoader(DATASET_PATH + PROBLEM_FILE)
-
     # Run grid search
     results, best_config, best_tour_length, best_run_time, total_runtime = grid_search(
-        tsp_data,
+        DATASET_PATH + PROBLEM_FILE,
         population_sizes=pop_sizes,
         crossover_chance=crossover_rates,
         mutation_chance=mutation_rates,
