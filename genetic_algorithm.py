@@ -351,7 +351,7 @@ class GeneticAlgorithm:
                         child = self.swap_mutation(child)
                     else:
                         child = self.inversion_mutation(child)
-                    new_population.append(child)
+                new_population.append(child)
 
             # Replace old population with new one.
             self.population = new_population
