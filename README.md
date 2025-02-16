@@ -20,7 +20,7 @@ The following can be modified:
 - DATASET_PATH: Path to where the TSP files are stored.
 - PROBLEM_FILE: TSP file name to test for this run.
 - GEN_LIMIT: The generation limit the algorithm will run.  
-             (Provided if the algorithm has not stagnated.)
+             (Provided if the algorithm has not stagnated in the last 100 generations.)
 #### Grid Search Variables
 - pop_sizes: Range of population size variables to test.
 - crossover_rates: Range of crossover chances to test.
