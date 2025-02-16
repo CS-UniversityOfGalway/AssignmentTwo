@@ -26,11 +26,19 @@ The following can be modified:
 - crossover_rates: Range of crossover chances to test.
 - mutation_rates: Range of mutation chances to test.
 
+### Example
+Running the code as is with no modifcations, will do 1000 generation grid search test run on the pr1002.tsp dataset is the tsp_datasets folder, with the pop_sizes 200, 225, 250,crossover_rates 0.7, 0.8, 0.9 and mutation_rates 0.01, 0.02, 0.05.
+
 ### Run
 To run the evolutionary search, execute within the EvolutionarySearch directory:
 ```bash
-python geneticAlgorithm.py
+python genetic_algorithm.py
 ```
 
+### Output
+After the run is complete, the following will happen:
+- A graph will appear for the best run, with best fitness plotted against generations.
+- CMD output of the results of the best run and time taken.
+- A CSV file will be output with the results for the entire grid search test run. 
 ## Linting
 Linted with Microsoft's PyLint

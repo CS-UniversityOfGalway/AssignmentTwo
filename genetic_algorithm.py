@@ -188,14 +188,14 @@ class GeneticAlgorithm:
     def edge_crossover(self, parent1: List[int], parent2: List[int]) -> List[int]:
         """Edge crossover is a variation of order crossover that preserves edges
            between cities from the parent tours. It builds a new tour by considering
-           the neighbors of each city in both parents, uses existing connections
+           the neighbours of each city in both parents, uses existing connections
            when possible.
 
         Args:
             parent1 (List[int]): First parent tour represented as a list of city indices.
-                                 Used to identify neighbor relationships between cities.
+                                 Used to identify neighbour relationships between cities.
             parent2 (List[int]): Second parent tour represented as a list of city indices.
-                                 Used to identify neighbor relationships between cities.
+                                 Used to identify neighbour relationships between cities.
 
         Returns:
             List[int]: A new child tour that attempts to preserve edge relationships from
