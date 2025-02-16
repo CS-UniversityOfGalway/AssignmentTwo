@@ -5,7 +5,7 @@ Solving the Traveling Salesman Problem using a genetic algorithm for Assignment 
 
 ## Authors
 - Tim Samoska: 21326923
-- Alasdair Ball:
+- Alasdair Ball: 21436934
 
 ## Installation
 To install the necessary dependencies, run:
