@@ -326,6 +326,9 @@ class GeneticAlgorithm:
         start_time = time.time() # Note the start time of the algorithm
         self.create_initial_population() # Create the initial random population
 
+        stagnant_generations = 0  # Counter for generations without improvement
+        last_best_length = float('inf')  # Track last best length
+
         # Run through the amount of generations specified
         for gen in range(self.num_generations):
             # Start with new empty pop
@@ -374,6 +377,18 @@ class GeneticAlgorithm:
             _,current_gen_best_length = self.get_best_individual()
             # Append the best fitness of the current generation to the history
             self.best_fitness_history.append(current_gen_best_length)
+
+            # Check for improvement
+            if current_gen_best_length >= last_best_length:
+                stagnant_generations += 1
+            else:
+                stagnant_generations = 0
+                last_best_length = current_gen_best_length
+                
+            # Early stopping condition
+            if stagnant_generations >= 100:
+                print(f"\nStopping early - No improvement for {stagnant_generations} generations")
+                break
 
             # Print progress
             if gen % 10 == 0:
@@ -487,13 +502,13 @@ if __name__ == "__main__":
     DATASET_PATH = "tsp_datasets/"
 
     # !!Modify this to test different TSP instances!!
-    PROBLEM_FILE = "berlin52.tsp"
+    PROBLEM_FILE = "pr1002.tsp"
 
     # !!Modify this to test generation amounts!!
     GENS = 1000
 
     # !!Define parameter ranges to test (MODIFY AS NEEDED)!!
-    pop_sizes = [50, 100, 200]
+    pop_sizes = [200, 225, 250]
     crossover_rates = [0.7, 0.8, 0.9]
     mutation_rates = [0.01, 0.02, 0.05]
     #----------------------------------
