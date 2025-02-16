@@ -384,7 +384,7 @@ class GeneticAlgorithm:
             else:
                 stagnant_generations = 0
                 last_best_length = current_gen_best_length
-                
+
             # Early stopping condition
             if stagnant_generations >= 100:
                 print(f"\nStopping early - No improvement for {stagnant_generations} generations")
@@ -504,8 +504,8 @@ if __name__ == "__main__":
     # !!Modify this to test different TSP instances!!
     PROBLEM_FILE = "pr1002.tsp"
 
-    # !!Modify this to test generation amounts!!
-    GENS = 1000
+    # !!Modify this to change the generation limit!!
+    GEN_LIMIT = 1000
 
     # !!Define parameter ranges to test (MODIFY AS NEEDED)!!
     pop_sizes = [200, 225, 250]
@@ -521,7 +521,7 @@ if __name__ == "__main__":
         population_sizes=pop_sizes,
         crossover_chance=crossover_rates,
         mutation_chance=mutation_rates,
-        generations = GENS
+        generations = GEN_LIMIT
     )
 
     # Save results to a csv file
