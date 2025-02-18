@@ -11,36 +11,57 @@ Classes:
     GeneticAlgorithm: Main class implementing the genetic algorithm solver
 """
 import random
-import os
+import itertools
 import time
 from typing import List, Tuple
+import tsplib95
 import matplotlib.pyplot as plt
-from tsp_loader import TSPDataLoader
+import pandas as pd
 
 class GeneticAlgorithm:
     """Main class implementing the genetic algorithm solver for the TSP
     """
-    def __init__(self, tsp_instance, pop_size=50, generations=100,
-                 mutation_rate=0.01, elite_size=2):
+    def __init__(self, tsp_data, pop_size=50, generations=1000,
+                 mutation_rate=0.01, crossover_rate=0.8):
         """Initializes the genetic algorithm with the provided parameters
 
         Args:
-            tsp_instance (TSPDataLoader): The TSP data to solve, provided in tsp_datasets folder
-            pop_size (int, optional): Determines how many random solutions will be created in the
-                                      initial population. Defaults to 50.
-            generations (int, optional): How many times the algorithm will evolve. Defaults to 100.
+            tsp_data (tsplib95): The TSP data to solve
+            pop_size (int, optional): Population size. Defaults to 50.
+            generations (int, optional): Number of generations. Defaults to 1000.
             mutation_rate (float, optional): Chance of mutation. Defaults to 0.01.
-            elite_size (int, optional): How many good solutions to perserve in each gen.
-                                        Defaults to 2.
+            elite_size (int, optional): Number of elite solutions. Defaults to 2.
+            crossover_rate (float, optional): Probability of crossover occurring. Defaults to 0.8.
         """
-        self.tsp = tsp_instance
+        self.tsp = tsp_data
         self.population_size = pop_size
         self.num_generations = generations
         self.mut_rate = mutation_rate
-        self.elite = elite_size
-        self.population = [] # Stores current population of solutions/tours
-        self.best_fitness_history = [] # Best fitness across generations is stored
-        self.avg_fitness_history = [] # Average fitness across generations is also stored
+        self.elite = 2 # Number of elite solutions to keep
+        self.crossover_rate = crossover_rate
+        self.population = []
+        self.best_fitness_history = []
+        # We are precomputing the distance matriox for faster fitness calculation later
+        self.distance_matrix = self._precompute_distances()
+
+    def _precompute_distances(self):
+        """Precompute distances between all cities
+        
+        Returns:
+            List[List[int]]: A 2D list of distances between all cities
+        """
+        dim = self.tsp.dimension # Number of cities in problem
+        # Create a 2D matrix of zeros to store distances, with dimensions equal to number of cities
+        matrix = [[0 for _ in range(dim)] for _ in range(dim)]
+        # Iterting through all pairs of cities
+        for i in range(1, dim + 1):
+            for j in range(1, dim + 1):
+                #No need to calculate distance between same city
+                if i != j:
+                    # Uusing TSPLIB95's get_weight method to get the distance between two cities
+                    # Taking one away from the indexes for basing the indexes from 0
+                    matrix[i-1][j-1] = self.tsp.get_weight(i, j)
+        return matrix
 
 
     def create_initial_population(self):
@@ -49,10 +70,29 @@ class GeneticAlgorithm:
         num_cities = self.tsp.dimension # Parses the number of cities from the TSP data
         for _ in range(self.population_size): # Creates a population of random tours, defined by
                                               # the provided population size
-            indiv = list(range(num_cities)) # Each city is represented by a unique integer
+            indiv = list(range(num_cities))# Each city is represented by a unique integer
             random.shuffle(indiv) # Randomly shuffles the order of the cities to create a
                                   # random tour
             self.population.append(indiv) # Adds the tour to the population list
+
+
+    def calculate_tour_length(self, tour: list) -> float:
+        """Calculate the total length of the tour.
+            
+        Args:
+            tour (list): A list of city indices, in order that the cities are visited in the tour
+
+        Returns:
+            float: Total tour length, summed together city to city
+        """
+        total = 0
+        # Iterating through all cities pairs in the tour
+        for i in range(len(tour) - 1):
+            # add distances from on to the next city and add to totalk
+            total += self.distance_matrix[tour[i]][tour[i + 1]]
+        # Add the distance from the last city back to the first city
+        total += self.distance_matrix[tour[-1]][tour[0]]
+        return total
 
 
     def calculate_fitness(self, individual: List[int]) -> float:
@@ -67,7 +107,7 @@ class GeneticAlgorithm:
         """
         try:
             # Coverting distance to fitness value
-            return 1 / self.tsp.calculate_tour_length(individual) # Minimization -> maximization
+            return 1 / self.calculate_tour_length(individual) # Minimization -> maximization
         except ZeroDivisionError: # If this exception is thrown, the tour is considered invalid and
                                   # an infinite fitness is returned (Worst possible fitness)
             return float('inf')
@@ -128,8 +168,14 @@ class GeneticAlgorithm:
         child = [-1] * size # Creates empty child tour filled with -1
         child[start:end] = parent1[start:end] # Copies segments from parent1 into new child tour
                                               # using the random segment genetated
+
         # Creates an array which has ciiies that are not in the child tour
-        remaining_cities = [x for x in parent2 if x not in child[start:end]]
+        used_cities = set(parent1[start:end])
+        remaining_cities = []
+        for city in parent2:
+            if city not in used_cities:
+                remaining_cities.append(city)
+
         # for loop to fill the remaining spots in the child tour with new cities from parent2
         j = 0
         for i in range(size):
@@ -142,14 +188,14 @@ class GeneticAlgorithm:
     def edge_crossover(self, parent1: List[int], parent2: List[int]) -> List[int]:
         """Edge crossover is a variation of order crossover that preserves edges
            between cities from the parent tours. It builds a new tour by considering
-           the neighbors of each city in both parents, uses existing connections
+           the neighbours of each city in both parents, uses existing connections
            when possible.
 
         Args:
             parent1 (List[int]): First parent tour represented as a list of city indices.
-                                 Used to identify neighbor relationships between cities.
+                                 Used to identify neighbour relationships between cities.
             parent2 (List[int]): Second parent tour represented as a list of city indices.
-                                 Used to identify neighbor relationships between cities.
+                                 Used to identify neighbour relationships between cities.
 
         Returns:
             List[int]: A new child tour that attempts to preserve edge relationships from
@@ -158,17 +204,23 @@ class GeneticAlgorithm:
             adjacent cities are available, it selects a random unused city.
         """
         size = len(parent1) # Get the length of parent1's tour
+
+        # position lookup
+        p1_pos = {city: idx for idx, city in enumerate(parent1)}
+        p2_pos = {city: idx for idx, city in enumerate(parent2)}
+
         child = [-1] * size # Creates empty child tour filled with -1
 
         # Start with random city from parten 1 as first city in child
         current = random.choice(parent1)
         child[0] = current
+        used = {current}
 
         # fill the rest of the child tour
         for i in range(1, size):
             # Parse the index of the current city in child in both parents
-            p1_idx = parent1.index(current)
-            p2_idx = parent2.index(current)
+            p1_idx = p1_pos[current]
+            p2_idx = p2_pos[current]
 
             # Next cities are the ones that come after the current city in both parents.
             # 1 is added to the parsed indexes from the parents.
@@ -188,10 +240,11 @@ class GeneticAlgorithm:
             else:
                 # If both are in child, all unused cities are parsed only from parent1 since they
                 # contain the same cities in different orders
-                unused = [x for x in parent1 if x not in child]
-                current = random.choice(unused) # random city from list of unused cities is chosen
+                unused = list(set(range(size)) - used)
+                current = random.choice(unused)
 
             child[i] = current
+            used.add(current)
 
         return child
 
@@ -243,13 +296,10 @@ class GeneticAlgorithm:
         generations = range(len(self.best_fitness_history))
 
         # Plot best fitness
-        plt.plot(generations, self.best_fitness_history, 'b-', label='Best Tour Length')
-
-        # Plot average fitness
-        plt.plot(generations, self.avg_fitness_history, 'r--', label='Average Tour Length')
+        plt.plot(generations, self.best_fitness_history, 'b-', label='Best Fitness')
 
         plt.xlabel('Generation')
-        plt.ylabel('Tour Length')
+        plt.ylabel('Fitness')
         plt.title(f'GA Performance on {self.tsp.name}')
         plt.legend()
         plt.grid(True)
@@ -276,6 +326,9 @@ class GeneticAlgorithm:
         start_time = time.time() # Note the start time of the algorithm
         self.create_initial_population() # Create the initial random population
 
+        stagnant_generations = 0  # Counter for generations without improvement
+        last_best_length = float('inf')  # Track last best length
+
         # Run through the amount of generations specified
         for gen in range(self.num_generations):
             # Start with new empty pop
@@ -296,13 +349,24 @@ class GeneticAlgorithm:
                 parent1 = self.tournament_selection()
                 parent2 = self.tournament_selection()
 
-                # 50% chance of using order crossover, 50% chance of using edge crossover
-                if random.random() < 0.5:
-                    child = self.order_crossover(parent1, parent2)
+                # First check if crossover should occur based on crossover rate
+                if random.random() < self.crossover_rate:
+                    # Then decide which type of crossover to use
+                    if random.random() < 0.5:
+                        child = self.order_crossover(parent1, parent2)
+                    else:
+                        child = self.edge_crossover(parent1, parent2)
                 else:
-                    child = self.edge_crossover(parent1, parent2)
-                # Small chance of mutation
-                child = self.swap_mutation(child)
+                    # No crossover, just copy one parent
+                    child = parent1.copy()
+
+                # Apply mutation with random choice between operators
+                if random.random() < self.mut_rate:
+                    # Randomly choose between swap and inversion mutation
+                    if random.random() < 0.5:
+                        child = self.swap_mutation(child)
+                    else:
+                        child = self.inversion_mutation(child)
                 new_population.append(child)
 
             # Replace old population with new one.
@@ -310,13 +374,21 @@ class GeneticAlgorithm:
 
             # Record statistics
             # Keep track of our best tour and average performance
-            _, current_gen_best_length = self.get_best_individual()
+            _,current_gen_best_length = self.get_best_individual()
             # Append the best fitness of the current generation to the history
             self.best_fitness_history.append(current_gen_best_length)
 
-            # Get all fitnesses in the population and find average
-            fitnesses = [1/self.calculate_fitness(ind) for ind in self.population]
-            self.avg_fitness_history.append(sum(fitnesses)/len(fitnesses))
+            # Check for improvement
+            if current_gen_best_length >= last_best_length:
+                stagnant_generations += 1
+            else:
+                stagnant_generations = 0
+                last_best_length = current_gen_best_length
+
+            # Early stopping condition
+            if stagnant_generations >= 100:
+                print(f"\nStopping early - No improvement for {stagnant_generations} generations")
+                break
 
             # Print progress
             if gen % 10 == 0:
@@ -328,33 +400,138 @@ class GeneticAlgorithm:
         return self.get_best_individual() # return best tour and its length
 
 
+def grid_search(tsp_instance,
+                population_sizes: List[int],
+                crossover_chance: List[float],
+                mutation_chance: List[float],
+                generations: int) -> pd.DataFrame:
+    """
+    Performs grid search over GA parameters and returns results as DataFrame.
+    
+    Args:
+        tsp_instance: TSP problem instance
+        pop_sizes: List of population sizes to test
+        crossover_rates: List of crossover rates to test
+        mutation_rates: List of mutation rates to test
+        generations: Number of generations to run each test
+    
+    Returns:
+        Tuple containing:
+        - DataFrame with all run results
+        - Dict with best parameters found
+        - Float of best tour length
+        - Float of runtime for best tour
+        - Float of total grid search runtime
+    """
+    grid_search_results = [] # List to store results, will be converted to DataFrame later
+    total_start_time = time.time()
+    curr_best_tour_length = float('inf')
+    curr_best_run_time = None
+    best_params = None
+    best_fitness_history = None  # Track best fitness history
+
+    # Generate all parameter combinations
+    param_combinations = list(itertools.product(
+        population_sizes,
+        crossover_chance,
+        mutation_chance
+    ))
+
+    total_runs = len(param_combinations)
+    current_run = 0
+
+    # Load the TSP instance once before the loop
+    tsp_data = tsplib95.load(tsp_instance)
+
+    #Loop through all parameter combinations
+    for population_size, c_rate, m_rate in param_combinations:
+        current_run += 1
+        print(f"\nRun {current_run}/{total_runs}")
+        print(f"Testing: pop={population_size}, cross={c_rate}, mut={m_rate}")
+
+        # Create and run a GA with current parameters
+        ga = GeneticAlgorithm(
+            tsp_data,
+            pop_size=population_size,
+            generations=generations,
+            mutation_rate=m_rate,
+            crossover_rate=c_rate
+        )
+
+        start_time = time.time()
+        _, tour_length = ga.evolve()
+        run_time = time.time() - start_time
+
+        # Update best tour length and parameters if needed
+        # (i.e if the current run produced a better tour)
+        if tour_length < curr_best_tour_length:
+            curr_best_tour_length = tour_length
+            curr_best_run_time = run_time
+            best_params = {
+                'population_size': population_size,
+                'crossover_rate': c_rate,
+                'mutation_rate': m_rate
+            }
+            best_fitness_history = ga.best_fitness_history.copy()# Save history of best run
+
+        # Record results
+        grid_search_results.append({
+            'population_size': population_size,
+            'crossover_rate': c_rate,
+            'mutation_rate': m_rate,
+            'run_number': current_run,
+            'best_tour_length': tour_length,
+            'computation_time': run_time
+        })
+
+    # Convert results to DataFrame
+    results_df = pd.DataFrame(grid_search_results)
+    curr_total_runtime = time.time() - total_start_time
+
+    best_ga = GeneticAlgorithm(tsp_data) # Create GA object for plotting
+    # Set the best run history to plot
+    best_ga.best_fitness_history = best_fitness_history
+    best_ga.plot_performance()
+
+    return results_df, best_params, curr_best_tour_length, curr_best_run_time, curr_total_runtime
+
+
 if __name__ == "__main__":
-    #TEMP: For testing purposes, only run on berlin52 for now, expand to other datasets later
-    problem_files = ["berlin52.tsp"]
-    # Run through each problem file
-    for problem in problem_files:
-        try:
-            print(f"\nSolving {problem}")
-            DATASET_PATH = "tsp_datasets/"
-            # Check if the dataset is in the default location, if not, try the parent directory
-            if not os.path.exists(DATASET_PATH + problem):
-                DATASET_PATH = "../tsp_datasets/"
-            # Parse tsp data from file
-            tsp_data = TSPDataLoader(DATASET_PATH + problem)
-            # Create an instance of the genetic algorithm
-            ga = GeneticAlgorithm(tsp_data, pop_size=50, generations=5000)
-            # Best route and length recorded
-            best_route, best_length = ga.evolve()
+    # --- User-defined parameters ---
+    # Path to the TSP dataset folder
+    DATASET_PATH = "tsp_datasets/"
 
-            print(f"Final Fitness: {best_length:.2f}")
-            print(f"Final Path: {best_route}")
+    # !!Modify this to test different TSP instances!!
+    PROBLEM_FILE = "pr1002.tsp"
 
-            # Plot results
-            ga.plot_performance()
+    # !!Modify this to change the generation limit!!
+    GEN_LIMIT = 1000
 
-        except FileNotFoundError:
-            print(f"Could not find dataset file for {problem}")
-            continue
-        except ValueError as e:
-            print(f"Invalid data format in {problem}: {str(e)}")
-            continue
+    # !!Define parameter ranges to test (MODIFY AS NEEDED)!!
+    pop_sizes = [200, 225, 250]
+    crossover_rates = [0.7, 0.8, 0.9]
+    mutation_rates = [0.01, 0.02, 0.05]
+    #----------------------------------
+
+    print(f"\nSolving {PROBLEM_FILE}")
+
+    # Run grid search
+    results, best_config, best_tour_length, best_run_time, total_runtime = grid_search(
+        DATASET_PATH + PROBLEM_FILE,
+        population_sizes=pop_sizes,
+        crossover_chance=crossover_rates,
+        mutation_chance=mutation_rates,
+        generations = GEN_LIMIT
+    )
+
+    # Save results to a csv file
+    results.to_csv('grid_search_results.csv', index=False)
+
+    # Print best configuration
+    print("\nBest configuration found:")
+    print(f"Population Size: {best_config['population_size']}")
+    print(f"Crossover Rate: {best_config['crossover_rate']:.2f}")
+    print(f"Mutation Rate: {best_config['mutation_rate']:.3f}")
+    print(f"Best Tour Length: {best_tour_length:.2f}")
+    print(f"Best Fitness Run Time: {best_run_time:.2f}s")
+    print(f"\nTotal Grid Search Runtime: {total_runtime:.2f}s")

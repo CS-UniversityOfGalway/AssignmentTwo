@@ -16,3 +16,20 @@
 - Removed redundant comments
 - Added function doc strings
 - Applied linting (Pylint) across genetic_algorithm.py
+- Added crossover rate
+
+### 15/2/25
+#### Tim
+- Added ability to grid search a range of parameters
+- Multiple runs are now made
+- Results are output to a csv file
+- Refactoring of main entry function
+- Integrated TSPLoader aspects into main function
+- Optimization and logic fixes
+- Implemented a chance for Inversion swapping to be used
+
+### 16/2/25
+#### Tim
+- Final changes to Readme
+- Finalisation of requirement.txt
+- Final linting of genetic_algorithm.py
