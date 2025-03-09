@@ -50,8 +50,19 @@ class IPDGeneticAlgorithm:
             ('D', 'D'): (1, 1)   # Both defect
         }
 
+    def always_cooperate(self, opponent_history, my_history):
+        """Strategy that always cooperates"""
+        return 'C'
     
-
+    def always_defect(self, opponent_history, my_history):
+        """Strategy that always defects"""
+        return 'D'
+    
+    def tit_for_tat(self, opponent_history, my_history):
+        """Strategy that begins by cooperating and then mimics opponent's previous move"""
+        if not opponent_history:  # First move
+            return 'C'
+        return opponent_history[-1]
 
     def _precompute_distances(self):
         """Precompute distances between all cities
