@@ -32,6 +32,13 @@ class IPDGeneticAlgorithm:
             crossover_rate (float, optional): Probability of crossover occurring. Defaults to 0.8.
             memory_length (int, optional): Length of memory for strategies. Defaults to 1.
         """
+            # Add this to organize your fixed strategies
+        self.fixed_strategies = [
+        self.always_cooperate,
+        self.always_defect,
+        self.tit_for_tat,
+        self.suspicious_tit_for_tat
+    ]
         self.population_size = pop_size
         self.num_generations = generations
         self.mut_rate = mutation_rate
@@ -73,24 +80,6 @@ class IPDGeneticAlgorithm:
             return 'D'
         return opponent_history[-1]
 
-    def _precompute_distances(self):
-        """Precompute distances between all cities
-        
-        Returns:
-            List[List[int]]: A 2D list of distances between all cities
-        """
-        dim = self.tsp.dimension # Number of cities in problem
-        # Create a 2D matrix of zeros to store distances, with dimensions equal to number of cities
-        matrix = [[0 for _ in range(dim)] for _ in range(dim)]
-        # Iterting through all pairs of cities
-        for i in range(1, dim + 1):
-            for j in range(1, dim + 1):
-                #No need to calculate distance between same city
-                if i != j:
-                    # Uusing TSPLIB95's get_weight method to get the distance between two cities
-                    # Taking one away from the indexes for basing the indexes from 0
-                    matrix[i-1][j-1] = self.tsp.get_weight(i, j)
-        return matrix
 
     def create_initial_population(self):
         """Creates the initial population of potential strategies
@@ -163,41 +152,25 @@ class IPDGeneticAlgorithm:
                 else:  # ['D', 'D']
                     return 'C' if genome[4] == 1 else 'D'
 
-    def calculate_tour_length(self, tour: list) -> float:
-        """Calculate the total length of the tour.
-            
+
+    def calculate_fitness(self, genome):
+        """Calculate fitness by playing against all fixed strategies
+    
         Args:
-            tour (list): A list of city indices, in order that the cities are visited in the tour
-
+            genome (List[int]): The strategy genome to evaluate
+        
         Returns:
-            float: Total tour length, summed together city to city
+            float: Average score against all fixed strategies
         """
-        total = 0
-        # Iterating through all cities pairs in the tour
-        for i in range(len(tour) - 1):
-            # add distances from on to the next city and add to totalk
-            total += self.distance_matrix[tour[i]][tour[i + 1]]
-        # Add the distance from the last city back to the first city
-        total += self.distance_matrix[tour[-1]][tour[0]]
-        return total
-
-
-    def calculate_fitness(self, individual: List[int]) -> float:
-        """Evalutes how 'good' each soluton is designed to covert our problem from minimization
-        to maximisation length. We want to minimize tour length used, also to decide which solutions
-        that survive this generation, which become parents ands whats our best solution so far.
-
-        Returns:
-            float: Fitness score of the tour. Higher values indicate better solutions
-              - Returns 1/tour_length to convert minimization to maximization problem
-              - Returns infinity if tour length is zero (invalid tour)
-        """
-        try:
-            # Coverting distance to fitness value
-            return 1 / self.calculate_tour_length(individual) # Minimization -> maximization
-        except ZeroDivisionError: # If this exception is thrown, the tour is considered invalid and
-                                  # an infinite fitness is returned (Worst possible fitness)
-            return float('inf')
+        total_score = 0
+    
+        # Play against each fixed strategy
+        for strategy in self.fixed_strategies:
+            my_score, _ = self.play_game(genome, strategy)
+            total_score += my_score
+    
+        # Return average score
+        return total_score / len(self.fixed_strategies)
 
     def get_best_individual(self) -> Tuple[List[int], float]:
         """Returns the best tour found in the current population along with its distance.
@@ -271,6 +244,7 @@ class IPDGeneticAlgorithm:
                 j += 1
         return child
 
+    
 
     def edge_crossover(self, parent1: List[int], parent2: List[int]) -> List[int]:
         """Edge crossover is a variation of order crossover that preserves edges
