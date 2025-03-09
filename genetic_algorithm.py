@@ -172,18 +172,15 @@ class IPDGeneticAlgorithm:
         # Return average score
         return total_score / len(self.fixed_strategies)
 
-    def get_best_individual(self) -> Tuple[List[int], float]:
-        """Returns the best tour found in the current population along with its distance.
-
+    def get_best_individual(self):
+        """Return the best strategy in the current population
+    
         Returns:
-            Tuple[List[int], float]: A tuple containing:
-            - The best tour as a list of city indices
-            - total distance of this tour
+            Tuple[List[int], float]: Best genome and its fitness
         """
-        # Returns the best tour
-        best = max(self.population, key=self.calculate_fitness)
-        # The list tour is returned, fitness is calculated and divided itno 1 to get the distance
-        return best, 1 / self.calculate_fitness(best)
+        best_genome = max(self.population, key=self.calculate_fitness)
+        best_fitness = self.calculate_fitness(best_genome)
+        return best_genome, best_fitness
 
 
     def tournament_selection(self, tournament_size: int = 3) -> List[int]:
@@ -324,96 +321,60 @@ class IPDGeneticAlgorithm:
 
 
     def evolve(self):
-        """Runs the genetic algorithm to find an optimal TSP tour. The algorithm:
-            - Creates an initial random population
-            - For each generation:
-                - Preserves elite (best) solutions
-                - Fills rest of population through:
-                    Tournament selection of parents
-                    Crossover 50/50 order and edge crossover
-                    Chance of mutation
-            - Tracks and reports progress
-            
-            Returns:
-                Tuple[List[int], float]: A tuple containing:
-                    - The best tour found across all generations
-                    - The total distance of this best tour
-            """
-        start_time = time.time() # Note the start time of the algorithm
-        self.create_initial_population() # Create the initial random population
-
-        stagnant_generations = 0  # Counter for generations without improvement
-        last_best_length = float('inf')  # Track last best length
-
-        # Run through the amount of generations specified
+        """Run the genetic algorithm to evolve IPD strategies"""
+        start_time = time.time()
+        self.create_initial_population()
+    
+        # Track best fitness over generations
+        self.best_fitness_history = []
+        self.avg_fitness_history = []
+    
         for gen in range(self.num_generations):
-            # Start with new empty pop
+            # Calculate fitness for all individuals
+            fitness_scores = [self.calculate_fitness(genome) for genome in self.population]
+            avg_fitness = sum(fitness_scores) / len(fitness_scores)
+            self.avg_fitness_history.append(avg_fitness)
+        
+            # Get the best individual of this generation
+            best_genome, best_fitness = self.get_best_individual()
+            self.best_fitness_history.append(best_fitness)
+        
+            # Create a new population
             new_population = []
-
-            # Keep elite individuals,
-            # Sort current population by fitness and keep best individuals
-            sorted_pop = sorted(self.population, key=self.calculate_fitness, reverse=True)
-            new_population.extend(sorted_pop[:self.elite]) # Preserve amount of elite solutions
-                                                           # specified
-
-            # Create rest of new population
-            # Then until we fill the population, pick two parents with tournament
-            # Create child through crossover
-            # Mutate child(small chance of random change)
-            # Add to new population
+        
+            # Add elite individuals
+            sorted_population = sorted(self.population, 
+                                   key=self.calculate_fitness, 
+                                   reverse=True)
+            new_population.extend(sorted_population[:self.elite])
+        
+            # Fill the rest of the population with children
             while len(new_population) < self.population_size:
                 parent1 = self.tournament_selection()
                 parent2 = self.tournament_selection()
-
-                # First check if crossover should occur based on crossover rate
-                if random.random() < self.crossover_rate:
-                    # Then decide which type of crossover to use
-                    if random.random() < 0.5:
-                        child = self.order_crossover(parent1, parent2)
-                    else:
-                        child = self.edge_crossover(parent1, parent2)
-                else:
-                    # No crossover, just copy one parent
-                    child = parent1.copy()
-
-                # Apply mutation with random choice between operators
-                if random.random() < self.mut_rate:
-                    # Randomly choose between swap and inversion mutation
-                    if random.random() < 0.5:
-                        child = self.swap_mutation(child)
-                    else:
-                        child = self.inversion_mutation(child)
+            
+                child = self.single_point_crossover(parent1, parent2)
+                child = self.bit_flip_mutation(child)
+            
                 new_population.append(child)
-
-            # Replace old population with new one.
+        
             self.population = new_population
-
-            # Record statistics
-            # Keep track of our best tour and average performance
-            _,current_gen_best_length = self.get_best_individual()
-            # Append the best fitness of the current generation to the history
-            self.best_fitness_history.append(current_gen_best_length)
-
-            # Check for improvement
-            if current_gen_best_length >= last_best_length:
-                stagnant_generations += 1
-            else:
-                stagnant_generations = 0
-                last_best_length = current_gen_best_length
-
-            # Early stopping condition
-            if stagnant_generations >= 100:
-                print(f"\nStopping early - No improvement for {stagnant_generations} generations")
-                break
-
+        
             # Print progress
             if gen % 10 == 0:
-                print(f"Generation {gen}: Best Fitness = {current_gen_best_length:.2f}")
-
-        # End time noed
+                print(f"Generation {gen}: Best Fitness = {best_fitness:.2f}, Avg Fitness = {avg_fitness:.2f}")
+    
         end_time = time.time()
-        print(f"\nTime taken: {end_time - start_time:.2f} seconds") # Time taken
-        return self.get_best_individual() # return best tour and its length
+        print(f"\nEvolution completed in {end_time - start_time:.2f} seconds")
+    
+        best_genome, best_fitness = self.get_best_individual()
+        strategy_description = self.analyze_strategy(best_genome)
+    
+        print("\nBest Strategy Found:")
+        print(strategy_description)
+        print(f"Average Score: {best_fitness:.2f}")
+    
+        return best_genome, best_fitness
 
 
 def grid_search(tsp_instance,
