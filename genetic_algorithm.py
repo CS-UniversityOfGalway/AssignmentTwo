@@ -92,17 +92,29 @@ class IPDGeneticAlgorithm:
                     matrix[i-1][j-1] = self.tsp.get_weight(i, j)
         return matrix
 
-
     def create_initial_population(self):
-        """Creates the initial population of potential solutions that the GA will evolve over time
+        """Creates the initial population of potential strategies
+        
+        For memory-1 strategies, the genome has 3 elements:
+        - First move (0=Defect, 1=Cooperate)
+        - Response to opponent's cooperation (0=Defect, 1=Cooperate)
+        - Response to opponent's defection (0=Defect, 1=Cooperate)
+        
+        For memory-2 strategies, the genome has 5 elements:
+        - First move
+        - Response to opponent's CC
+        - Response to opponent's CD
+        - Response to opponent's DC
+        - Response to opponent's DD
         """
-        num_cities = self.tsp.dimension # Parses the number of cities from the TSP data
-        for _ in range(self.population_size): # Creates a population of random tours, defined by
-                                              # the provided population size
-            indiv = list(range(num_cities))# Each city is represented by a unique integer
-            random.shuffle(indiv) # Randomly shuffles the order of the cities to create a
-                                  # random tour
-            self.population.append(indiv) # Adds the tour to the population list
+        # Calculate genome length based on memory length
+        genome_length = 1 + 2**self.memory_length
+        
+        # Create random initial population
+        for _ in range(self.population_size):
+            # Each gene is 0 (Defect) or 1 (Cooperate)
+            genome = [random.randint(0, 1) for _ in range(genome_length)]
+            self.population.append(genome)
 
 
     def calculate_tour_length(self, tour: list) -> float:
