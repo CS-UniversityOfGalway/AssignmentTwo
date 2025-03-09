@@ -244,69 +244,24 @@ class IPDGeneticAlgorithm:
                 j += 1
         return child
 
+    def bit_flip_mutatuion(self, genom):
+        return 0
+
+    def single_point_crossover(self, parent1, parent2):
+        """Single-point crossover for binary genomes
     
-
-    def edge_crossover(self, parent1: List[int], parent2: List[int]) -> List[int]:
-        """Edge crossover is a variation of order crossover that preserves edges
-           between cities from the parent tours. It builds a new tour by considering
-           the neighbours of each city in both parents, uses existing connections
-           when possible.
-
         Args:
-            parent1 (List[int]): First parent tour represented as a list of city indices.
-                                 Used to identify neighbour relationships between cities.
-            parent2 (List[int]): Second parent tour represented as a list of city indices.
-                                 Used to identify neighbour relationships between cities.
-
+            parent1 (List[int]): First parent genome
+            parent2 (List[int]): Second parent genome
+        
         Returns:
-            List[int]: A new child tour that attempts to preserve edge relationships from
-            both parent1 and parent2. Starting from a random city, it builds the tour by 
-            choosing next cities based on their adjacency in the parent tours. When no
-            adjacent cities are available, it selects a random unused city.
+            List[int]: Child genome
         """
-        size = len(parent1) # Get the length of parent1's tour
-
-        # position lookup
-        p1_pos = {city: idx for idx, city in enumerate(parent1)}
-        p2_pos = {city: idx for idx, city in enumerate(parent2)}
-
-        child = [-1] * size # Creates empty child tour filled with -1
-
-        # Start with random city from parten 1 as first city in child
-        current = random.choice(parent1)
-        child[0] = current
-        used = {current}
-
-        # fill the rest of the child tour
-        for i in range(1, size):
-            # Parse the index of the current city in child in both parents
-            p1_idx = p1_pos[current]
-            p2_idx = p2_pos[current]
-
-            # Next cities are the ones that come after the current city in both parents.
-            # 1 is added to the parsed indexes from the parents.
-            # Modulo is used to go back to the end of the tour if the current index exceeds the size
-            next_p1 = parent1[(p1_idx + 1) % size]
-            next_p2 = parent2[(p2_idx + 1) % size]
-
-            # If both next cities are not in child, random one is choen as next city
-            if next_p1 not in child and next_p2 not in child:
-                current = random.choice([next_p1, next_p2])
-            # If one of the parent cities are in child, the other one is chosen as next city
-            # and vice versa.
-            elif next_p1 not in child:
-                current = next_p1
-            elif next_p2 not in child:
-                current = next_p2
-            else:
-                # If both are in child, all unused cities are parsed only from parent1 since they
-                # contain the same cities in different orders
-                unused = list(set(range(size)) - used)
-                current = random.choice(unused)
-
-            child[i] = current
-            used.add(current)
-
+        if random.random() > self.crossover_rate:
+            return parent1.copy()
+        
+        crossover_point = random.randint(1, len(parent1) - 1)
+        child = parent1[:crossover_point] + parent2[crossover_point:]
         return child
 
 
