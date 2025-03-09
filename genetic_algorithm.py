@@ -120,7 +120,8 @@ class IPDGeneticAlgorithm:
 
     def interpret_strategy(self, genome, opponent_history, my_history):
         """Interpret a genome as a strategy and return the next move
-                Args:
+        
+        Args:
             genome (List[int]): Binary genome representing the strategy
             opponent_history (List[str]): History of opponent's moves
             my_history (List[str]): History of my moves
@@ -128,7 +129,39 @@ class IPDGeneticAlgorithm:
         Returns:
             str: 'C' for cooperate or 'D' for defect
         """
-        return 0
+        # First move
+        if not opponent_history:
+            return 'C' if genome[0] == 1 else 'D'
+        
+        if self.memory_length == 1:
+            # Memory-1: Just consider opponent's last move
+            last_move = opponent_history[-1]
+            if last_move == 'C':
+                return 'C' if genome[1] == 1 else 'D'  # Response to cooperation
+            else:
+                return 'C' if genome[2] == 1 else 'D'  # Response to defection
+                
+        elif self.memory_length == 2:
+            # Memory-2: Consider last two moves if available
+            if len(opponent_history) == 1:
+                # Only one move in history, use memory-1 part of strategy
+                last_move = opponent_history[0]
+                if last_move == 'C':
+                    return 'C' if genome[1] == 1 else 'D'
+                else:
+                    return 'C' if genome[2] == 1 else 'D'
+            else:
+                # Use last two moves
+                last_two = opponent_history[-2:]
+                
+                if last_two == ['C', 'C']:
+                    return 'C' if genome[1] == 1 else 'D'
+                elif last_two == ['C', 'D']:
+                    return 'C' if genome[2] == 1 else 'D'
+                elif last_two == ['D', 'C']:
+                    return 'C' if genome[3] == 1 else 'D'
+                else:  # ['D', 'D']
+                    return 'C' if genome[4] == 1 else 'D'
 
     def calculate_tour_length(self, tour: list) -> float:
         """Calculate the total length of the tour.
