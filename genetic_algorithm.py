@@ -18,31 +18,40 @@ import tsplib95
 import matplotlib.pyplot as plt
 import pandas as pd
 
-class GeneticAlgorithm:
-    """Main class implementing the genetic algorithm solver for the TSP
+class IPDGeneticAlgorithm:
+    """Main class implementing the genetic algorithm solver for the Iterated Prisoner's Dilemma
     """
-    def __init__(self, tsp_data, pop_size=50, generations=1000,
-                 mutation_rate=0.01, crossover_rate=0.8):
+    def __init__(self, pop_size=50, generations=100,
+                 mutation_rate=0.01, crossover_rate=0.8, memory_length=1):
         """Initializes the genetic algorithm with the provided parameters
 
         Args:
-            tsp_data (tsplib95): The TSP data to solve
             pop_size (int, optional): Population size. Defaults to 50.
-            generations (int, optional): Number of generations. Defaults to 1000.
+            generations (int, optional): Number of generations. Defaults to 100.
             mutation_rate (float, optional): Chance of mutation. Defaults to 0.01.
-            elite_size (int, optional): Number of elite solutions. Defaults to 2.
             crossover_rate (float, optional): Probability of crossover occurring. Defaults to 0.8.
+            memory_length (int, optional): Length of memory for strategies. Defaults to 1.
         """
-        self.tsp = tsp_data
         self.population_size = pop_size
         self.num_generations = generations
         self.mut_rate = mutation_rate
-        self.elite = 2 # Number of elite solutions to keep
+        self.elite = 2  # Number of elite solutions to keep
         self.crossover_rate = crossover_rate
+        self.memory_length = memory_length
         self.population = []
         self.best_fitness_history = []
-        # We are precomputing the distance matriox for faster fitness calculation later
-        self.distance_matrix = self._precompute_distances()
+        self.avg_fitness_history = []
+        
+        # Define payoff matrix for Prisoner's Dilemma
+        self.payoff_matrix = {
+            ('C', 'C'): (3, 3),  # Both cooperate
+            ('C', 'D'): (0, 5),  # Player 1 cooperates, Player 2 defects
+            ('D', 'C'): (5, 0),  # Player 1 defects, Player 2 cooperates
+            ('D', 'D'): (1, 1)   # Both defect
+        }
+
+    
+
 
     def _precompute_distances(self):
         """Precompute distances between all cities
