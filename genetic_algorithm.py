@@ -50,6 +50,8 @@ class IPDGeneticAlgorithm:
             ('D', 'D'): (1, 1)   # Both defect
         }
 
+    # opponent history and my history passed to strategies which dont use them
+    # for consitency, we would need to handle different function signatures when playing games
     def always_cooperate(self, opponent_history, my_history):
         """Strategy that always cooperates"""
         return 'C'
@@ -62,6 +64,13 @@ class IPDGeneticAlgorithm:
         """Strategy that begins by cooperating and then mimics opponent's previous move"""
         if not opponent_history:  # First move
             return 'C'
+        return opponent_history[-1]
+    
+
+    def suspicious_tit_for_tat(self, opponent_history, my_history):
+        """Strategy that begins by defecting and then mimics opponent's previous move"""
+        if not opponent_history:  # First move
+            return 'D'
         return opponent_history[-1]
 
     def _precompute_distances(self):
