@@ -22,23 +22,8 @@ class IPDGeneticAlgorithm:
     """Main class implementing the genetic algorithm solver for the Iterated Prisoner's Dilemma
     """
     def __init__(self, pop_size=50, generations=100,
-                 mutation_rate=0.01, crossover_rate=0.8, memory_length=1):
-        """Initializes the genetic algorithm with the provided parameters
-
-        Args:
-            pop_size (int, optional): Population size. Defaults to 50.
-            generations (int, optional): Number of generations. Defaults to 100.
-            mutation_rate (float, optional): Chance of mutation. Defaults to 0.01.
-            crossover_rate (float, optional): Probability of crossover occurring. Defaults to 0.8.
-            memory_length (int, optional): Length of memory for strategies. Defaults to 1.
-        """
-            # Add this to organize your fixed strategies
-        self.fixed_strategies = [
-        self.always_cooperate,
-        self.always_defect,
-        self.tit_for_tat,
-        self.suspicious_tit_for_tat
-    ]
+             mutation_rate=0.01, crossover_rate=0.8, memory_length=1):
+        """Initializes the genetic algorithm with the provided parameters"""
         self.population_size = pop_size
         self.num_generations = generations
         self.mut_rate = mutation_rate
@@ -48,14 +33,22 @@ class IPDGeneticAlgorithm:
         self.population = []
         self.best_fitness_history = []
         self.avg_fitness_history = []
-        
-        # Define payoff matrix for Prisoner's Dilemma
+    
+    # Define payoff matrix for Prisoner's Dilemma
         self.payoff_matrix = {
-            ('C', 'C'): (3, 3),  # Both cooperate
-            ('C', 'D'): (0, 5),  # Player 1 cooperates, Player 2 defects
-            ('D', 'C'): (5, 0),  # Player 1 defects, Player 2 cooperates
-            ('D', 'D'): (1, 1)   # Both defect
-        }
+        ('C', 'C'): (3, 3),  # Both cooperate
+        ('C', 'D'): (0, 5),  # Player 1 cooperates, Player 2 defects
+        ('D', 'C'): (5, 0),  # Player 1 defects, Player 2 cooperates
+        ('D', 'D'): (1, 1)   # Both defect
+    }
+    
+    # Add this to organize your fixed strategies
+        self.fixed_strategies = [
+        self.always_cooperate,
+        self.always_defect,
+        self.tit_for_tat,
+        self.suspicious_tit_for_tat
+    ]
 
     # opponent history and my history passed to strategies which dont use them
     # for consitency, we would need to handle different function signatures when playing games
@@ -203,46 +196,22 @@ class IPDGeneticAlgorithm:
         return max(tournament, key=self.calculate_fitness)
 
 
-    def order_crossover(self, parent1: List[int], parent2: List[int]) -> List[int]:
-        """Order crossover is called after tournament selection returns two parents with
-        suitable fitness. It preseves chunks of consecutive cities which may be 'good-routes'
-        gets size of tour so that we can pick two random points to crossover and defines
-        the segment we will copy from parent1 to child
 
+
+    def bit_flip_mutation(self, genome):
+        """Bit-flip mutation for binary genomes
+    
         Args:
-            parent1 (List[int]): First parent tour represented as a list of city indices.
-                                 Contributesa segment of its own tour to the child tour.
-            parent2 (List[int]): Second parent tour represented as a list of city indices.
-                                 Fills the remaining spots in the child tour. While ensuring
-                                 that no city is repeated.
-
+         genome (List[int]): Genome to mutate
+        
         Returns:
-            List[int]: Complete child tour with a segment from parent1 and the rest from parent2
-                       that does not contain any repeated cities.
+            List[int]: Mutated genome
         """
-        size = len(parent1) # Get the length of parent1's tour
-        start, end = sorted(random.sample(range(size), 2)) # Pick two random points to crossover
-        child = [-1] * size # Creates empty child tour filled with -1
-        child[start:end] = parent1[start:end] # Copies segments from parent1 into new child tour
-                                              # using the random segment genetated
-
-        # Creates an array which has ciiies that are not in the child tour
-        used_cities = set(parent1[start:end])
-        remaining_cities = []
-        for city in parent2:
-            if city not in used_cities:
-                remaining_cities.append(city)
-
-        # for loop to fill the remaining spots in the child tour with new cities from parent2
-        j = 0
-        for i in range(size):
-            if child[i] == -1: # If found empty spot in child
-                child[i] = remaining_cities[j] # Fill empty spot with next remaining city
-                j += 1
-        return child
-
-    def bit_flip_mutatuion(self, genom):
-        return 0
+        mutated = genome.copy()
+        for i in range(len(mutated)):
+            if random.random() < self.mut_rate:
+                mutated[i] = 1 - mutated[i]  # Flip bit (0->1, 1->0)
+        return mutated
 
     def single_point_crossover(self, parent1, parent2):
         """Single-point crossover for binary genomes
@@ -262,61 +231,24 @@ class IPDGeneticAlgorithm:
         return child
 
 
-    def swap_mutation(self, individual: List[int]) -> List[int]:
-        """Happens after crossover creates a new child. Gives small random changes to potentially
-        introduce new good solutions. Provided chance of swapping two numbers after creation of a 
-        new child from 2 parents to create mutation.
-
-        Args:
-            individual (List[int]): A tour represented as a list of city indices, child tour from
-                                    crossover of two parents
-
-        Returns:
-            List[int]: Either the original tour if no mutation occurs, or a new tour with two cities
-            swapped if it did occur.
-        """
-        # If random value is less than mutation rate, mutation occurs
-        if random.random() < self.mut_rate:
-            # Pick 2 random positions in the tour and swap the cities at those positions
-            idx1, idx2 = random.sample(range(len(individual)), 2)
-            individual[idx1], individual[idx2] = individual[idx2], individual[idx1]
-        return individual
 
 
-    def inversion_mutation(self, individual: List[int]) -> List[int]:
-        """Variation of mutation that inverts a subsection of the tour if random chance hits
-        Example: [1,2,3,4,5] might become [1,4,3,2,5]
-
-        Returns:
-            List[int]: Either the original tour if no mutation occurs, or a new tour with two
-            subsections swapped.
-        """
-        # If random value is less than mutation rate, mutation occurs
-        if random.random() < self.mut_rate:
-            # Pick 2 random positoins
-            pos1, pos2 = sorted(random.sample(range(len(individual)), 2))
-            # Reverse the subsection between positions
-            individual[pos1:pos2] = individual[pos1:pos2][::-1]
-        return individual
 
 
     def plot_performance(self):
-        """Plots the performance metrics of the genetic algorithm
-        Shows both best and average fitness over generations
-        """
+        """Plot the performance of the GA over generations"""
         plt.figure(figsize=(10, 6))
-        # Sequence of from 0 to number of generations that have the best fitness
         generations = range(len(self.best_fitness_history))
-
-        # Plot best fitness
+    
         plt.plot(generations, self.best_fitness_history, 'b-', label='Best Fitness')
-
+        plt.plot(generations, self.avg_fitness_history, 'g-', label='Average Fitness')
+    
         plt.xlabel('Generation')
-        plt.ylabel('Fitness')
-        plt.title(f'GA Performance on {self.tsp.name}')
+        plt.ylabel('Fitness (Average Score)')
+        plt.title('GA Performance on IPD Strategy Evolution')
         plt.legend()
         plt.grid(True)
-
+        plt.savefig('ipd_evolution_performance.png')
         plt.show()
 
 
@@ -375,140 +307,92 @@ class IPDGeneticAlgorithm:
         print(f"Average Score: {best_fitness:.2f}")
     
         return best_genome, best_fitness
-
-
-def grid_search(tsp_instance,
-                population_sizes: List[int],
-                crossover_chance: List[float],
-                mutation_chance: List[float],
-                generations: int) -> pd.DataFrame:
-    """
-    Performs grid search over GA parameters and returns results as DataFrame.
     
-    Args:
-        tsp_instance: TSP problem instance
-        pop_sizes: List of population sizes to test
-        crossover_rates: List of crossover rates to test
-        mutation_rates: List of mutation rates to test
-        generations: Number of generations to run each test
+
+    def analyze_strategy(self, genome):
+        """Analyze a strategy and return a human-readable description
     
-    Returns:
-        Tuple containing:
-        - DataFrame with all run results
-        - Dict with best parameters found
-        - Float of best tour length
-        - Float of runtime for best tour
-        - Float of total grid search runtime
-    """
-    grid_search_results = [] # List to store results, will be converted to DataFrame later
-    total_start_time = time.time()
-    curr_best_tour_length = float('inf')
-    curr_best_run_time = None
-    best_params = None
-    best_fitness_history = None  # Track best fitness history
+        Args:
+            genome (List[int]): Strategy genome to analyze
+        
+        Returns:
+            str: Human-readable description of the strategy
+        """
+        strategy_description = "Strategy: "
+        strategy_description += "First move: " + ("C" if genome[0] == 1 else "D")
+    
+        if self.memory_length == 1:
+            strategy_description += ", After C: " + ("C" if genome[1] == 1 else "D")
+            strategy_description += ", After D: " + ("C" if genome[2] == 1 else "D")
+        elif self.memory_length == 2:
+            strategy_description += ", After CC: " + ("C" if genome[1] == 1 else "D")
+            strategy_description += ", After CD: " + ("C" if genome[2] == 1 else "D")
+            strategy_description += ", After DC: " + ("C" if genome[3] == 1 else "D")
+            strategy_description += ", After DD: " + ("C" if genome[4] == 1 else "D")
+    
+        # Test strategy against each fixed strategy
+        for strategy in self.fixed_strategies:
+            strategy_name = strategy.__name__
+            my_score, opp_score = self.play_game(genome, strategy)
+            strategy_description += f"\nVs {strategy_name}: Score = {my_score}, Opponent = {opp_score}"
+    
+        return strategy_description
 
-    # Generate all parameter combinations
-    param_combinations = list(itertools.product(
-        population_sizes,
-        crossover_chance,
-        mutation_chance
-    ))
+    def play_game(self, genome, opponent_strategy, rounds=200):
+        """Play a game of Iterated Prisoner's Dilemma
+    
+        Args:
+            genome (List[int]): Strategy genome to evaluate
+            opponent_strategy: Function that takes histories and returns a move
+            rounds (int): Number of rounds to play
+        
+        Returns:
+            Tuple[int, int]: (my_score, opponent_score)
+        """
+        my_history = []
+        opponent_history = []
+        my_score = 0
+        opponent_score = 0
+    
+        for _ in range(rounds):
+            # Get moves
+            my_move = self.interpret_strategy(genome, opponent_history, my_history)
+            opponent_move = opponent_strategy(my_history, opponent_history)
+        
+            # Update histories
+            my_history.append(my_move)
+            opponent_history.append(opponent_move)
+        
+            # Update scores based on payoff matrix
+            payoff = self.payoff_matrix[(my_move, opponent_move)]
+            my_score += payoff[0]
+            opponent_score += payoff[1]
+        
+        return my_score, opponent_score
 
-    total_runs = len(param_combinations)
-    current_run = 0
-
-    # Load the TSP instance once before the loop
-    tsp_data = tsplib95.load(tsp_instance)
-
-    #Loop through all parameter combinations
-    for population_size, c_rate, m_rate in param_combinations:
-        current_run += 1
-        print(f"\nRun {current_run}/{total_runs}")
-        print(f"Testing: pop={population_size}, cross={c_rate}, mut={m_rate}")
-
-        # Create and run a GA with current parameters
-        ga = GeneticAlgorithm(
-            tsp_data,
-            pop_size=population_size,
-            generations=generations,
-            mutation_rate=m_rate,
-            crossover_rate=c_rate
-        )
-
-        start_time = time.time()
-        _, tour_length = ga.evolve()
-        run_time = time.time() - start_time
-
-        # Update best tour length and parameters if needed
-        # (i.e if the current run produced a better tour)
-        if tour_length < curr_best_tour_length:
-            curr_best_tour_length = tour_length
-            curr_best_run_time = run_time
-            best_params = {
-                'population_size': population_size,
-                'crossover_rate': c_rate,
-                'mutation_rate': m_rate
-            }
-            best_fitness_history = ga.best_fitness_history.copy()# Save history of best run
-
-        # Record results
-        grid_search_results.append({
-            'population_size': population_size,
-            'crossover_rate': c_rate,
-            'mutation_rate': m_rate,
-            'run_number': current_run,
-            'best_tour_length': tour_length,
-            'computation_time': run_time
-        })
-
-    # Convert results to DataFrame
-    results_df = pd.DataFrame(grid_search_results)
-    curr_total_runtime = time.time() - total_start_time
-
-    best_ga = GeneticAlgorithm(tsp_data) # Create GA object for plotting
-    # Set the best run history to plot
-    best_ga.best_fitness_history = best_fitness_history
-    best_ga.plot_performance()
-
-    return results_df, best_params, curr_best_tour_length, curr_best_run_time, curr_total_runtime
 
 
 if __name__ == "__main__":
-    # --- User-defined parameters ---
-    # Path to the TSP dataset folder
-    DATASET_PATH = "tsp_datasets/"
-
-    # !!Modify this to test different TSP instances!!
-    PROBLEM_FILE = "pr1002.tsp"
-
-    # !!Modify this to change the generation limit!!
-    GEN_LIMIT = 1000
-
-    # !!Define parameter ranges to test (MODIFY AS NEEDED)!!
-    pop_sizes = [200, 225, 250]
-    crossover_rates = [0.7, 0.8, 0.9]
-    mutation_rates = [0.01, 0.02, 0.05]
-    #----------------------------------
-
-    print(f"\nSolving {PROBLEM_FILE}")
-
-    # Run grid search
-    results, best_config, best_tour_length, best_run_time, total_runtime = grid_search(
-        DATASET_PATH + PROBLEM_FILE,
-        population_sizes=pop_sizes,
-        crossover_chance=crossover_rates,
-        mutation_chance=mutation_rates,
-        generations = GEN_LIMIT
+    # Run with Memory-1 strategies
+    print("\nEvolving Memory-1 Strategies:")
+    ga_mem1 = IPDGeneticAlgorithm(
+        pop_size=100,
+        generations=50,
+        mutation_rate=0.05,
+        crossover_rate=0.8,
+        memory_length=1
     )
-
-    # Save results to a csv file
-    results.to_csv('grid_search_results.csv', index=False)
-
-    # Print best configuration
-    print("\nBest configuration found:")
-    print(f"Population Size: {best_config['population_size']}")
-    print(f"Crossover Rate: {best_config['crossover_rate']:.2f}")
-    print(f"Mutation Rate: {best_config['mutation_rate']:.3f}")
-    print(f"Best Tour Length: {best_tour_length:.2f}")
-    print(f"Best Fitness Run Time: {best_run_time:.2f}s")
-    print(f"\nTotal Grid Search Runtime: {total_runtime:.2f}s")
+    best_genome_mem1, best_fitness_mem1 = ga_mem1.evolve()
+    ga_mem1.plot_performance()
+    
+    # Run with Memory-2 strategies
+    print("\nEvolving Memory-2 Strategies:")
+    ga_mem2 = IPDGeneticAlgorithm(
+        pop_size=100,
+        generations=50,
+        mutation_rate=0.05,
+        crossover_rate=0.8,
+        memory_length=2
+    )
+    best_genome_mem2, best_fitness_mem2 = ga_mem2.evolve()
+    ga_mem2.plot_performance()
