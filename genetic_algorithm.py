@@ -117,6 +117,19 @@ class IPDGeneticAlgorithm:
             self.population.append(genome)
 
 
+
+    def interpret_strategy(self, genome, opponent_history, my_history):
+        """Interpret a genome as a strategy and return the next move
+                Args:
+            genome (List[int]): Binary genome representing the strategy
+            opponent_history (List[str]): History of opponent's moves
+            my_history (List[str]): History of my moves
+            
+        Returns:
+            str: 'C' for cooperate or 'D' for defect
+        """
+        return 0
+
     def calculate_tour_length(self, tour: list) -> float:
         """Calculate the total length of the tour.
             
