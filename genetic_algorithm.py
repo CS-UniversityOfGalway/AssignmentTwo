@@ -21,7 +21,7 @@ class IPDGeneticAlgorithm:
     """Main class implementing the genetic algorithm solver for the Iterated Prisoner's Dilemma
     """
     def __init__(self, pop_size=50, generations=100,
-             mutation_rate=0.01, crossover_rate=0.8, memory_length=1, noise_level=0.2):
+             mutation_rate=0.01, crossover_rate=0.8, memory_length=1, noise_level=0.0):
         """Initializes the genetic algorithm with the provided parameters"""
         self.population_size = pop_size
         self.num_generations = generations
@@ -570,15 +570,14 @@ class IPDGeneticAlgorithm:
     
         return strategy_description
 
-# Replace your play_game method with this one
     def play_game(self, genome, opponent_strategy, rounds=200):
         """Play a game of Iterated Prisoner's Dilemma with communication noise
-    
+
     Args:
         genome (List[int]): Strategy genome to evaluate
         opponent_strategy: Function that takes histories and returns a move
         rounds (int): Number of rounds to play
-    
+
     Returns:
         Tuple[int, int]: (my_score, opponent_score)
     """
@@ -588,7 +587,7 @@ class IPDGeneticAlgorithm:
         actual_opponent_history = []  # What opponent actually did
         my_score = 0
         opponent_score = 0
-    
+
         for _ in range(rounds):
             # Get moves based on perceived history
             my_move = self.interpret_strategy(genome, my_history, actual_my_history)
@@ -602,7 +601,7 @@ class IPDGeneticAlgorithm:
             perceived_my_move = my_move
             if random.random() < self.noise_level:
                 perceived_my_move = 'D' if my_move == 'C' else 'C'
-            
+        
             perceived_opponent_move = opponent_move
             if random.random() < self.noise_level:
                 perceived_opponent_move = 'D' if opponent_move == 'C' else 'C'
@@ -615,16 +614,74 @@ class IPDGeneticAlgorithm:
             payoff = self.payoff_matrix[(my_move, opponent_move)]
             my_score += payoff[0]
             opponent_score += payoff[1]
-    
+
         return my_score, opponent_score
 
 
 
 if __name__ == "__main__":
-    # Run noise experiments for Part 2
-    print("\nRunning Noise Experiments for Part 2:")
-    ga = IPDGeneticAlgorithm()
-    results_df = ga.run_noise_experiments()
+    # Set random seed for reproducibility
+    random.seed(42)
+    
+    # PART 1: Original grid search and evolution - UNCHANGED from your original code
+    print("\n========== PART 1: EVOLUTION AGAINST FIXED STRATEGIES ==========")
+    # Choose whether to run with default parameters or use grid search
+    run_grid_search = True  # Set to False to skip grid search
+
+    if run_grid_search:
+        print("\nRunning Grid Search to find optimal parameters:")
+        # Create a temporary instance to run the grid search
+        temp_ga = IPDGeneticAlgorithm()  # Default noise_level=0
+        best_params = temp_ga.grid_search()
+        
+        # Run with best parameters
+        top_params = best_params.iloc[0]
+        print("\nRunning final evolution with best parameters:")
+        print(top_params)
+        
+        ga_best = IPDGeneticAlgorithm(
+            pop_size=int(top_params['pop_size']),
+            generations=100,  # Use more generations for final run
+            mutation_rate=top_params['mutation_rate'],
+            crossover_rate=top_params['crossover_rate'],
+            memory_length=int(top_params['memory_length'])
+        )
+        
+        best_genome, best_fitness = ga_best.evolve()
+        ga_best.plot_performance()
+    else:
+        # Run with Memory-1 strategies
+        print("\nEvolving Memory-1 Strategies:")
+        ga_mem1 = IPDGeneticAlgorithm(
+            pop_size=100,
+            generations=50,
+            mutation_rate=0.05,
+            crossover_rate=0.8,
+            memory_length=1
+        )
+        best_genome_mem1, best_fitness_mem1 = ga_mem1.evolve()
+        ga_mem1.plot_performance()
+        
+        # Run with Memory-2 strategies
+        print("\nEvolving Memory-2 Strategies:")
+        ga_mem2 = IPDGeneticAlgorithm(
+            pop_size=100,
+            generations=50,
+            mutation_rate=0.05,
+            crossover_rate=0.8,
+            memory_length=2
+        )
+        best_genome_mem2, best_fitness_mem2 = ga_mem2.evolve()
+        ga_mem2.plot_performance()
+    
+    # PART 2: Run noise experiments
+    print("\n========== PART 2: NOISE EXTENSION ==========")
+    print("\nRunning Noise Experiments:")
+    
+    # Create a new instance for Part 2
+    ga_part2 = IPDGeneticAlgorithm()  # Default noise level will be set in run_noise_experiments
+    results_df = ga_part2.run_noise_experiments([0, 0.01, 0.05, 0.1, 0.2])
     
     # Save results to CSV
     results_df.to_csv('ipd_noise_experiment_results.csv', index=False)
+    print("Noise experiment results saved to 'ipd_noise_experiment_results.csv'")
