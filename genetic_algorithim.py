@@ -22,7 +22,7 @@ class IPDGeneticAlgorithm:
     """Main class implementing the genetic algorithm solver for the Iterated Prisoner's Dilemma
     """
     def __init__(self, pop_size=50, generations=100,
-             mutation_rate=0.01, crossover_rate=0.8, memory_length=1):
+             mutation_rate=0.01, crossover_rate=0.8, memory_length=1, noise_level=0.2):
         """Initializes the genetic algorithm with the provided parameters"""
         self.population_size = pop_size
         self.num_generations = generations
@@ -33,6 +33,7 @@ class IPDGeneticAlgorithm:
         self.population = []
         self.best_fitness_history = []
         self.avg_fitness_history = []
+        self.noise_level = noise_level  # Probability of a move being misinterpreted
     
     # Define payoff matrix for Prisoner's Dilemma
         self.payoff_matrix = {
@@ -42,7 +43,6 @@ class IPDGeneticAlgorithm:
         ('D', 'D'): (1, 1)   # Both defect
     }
     
-    # Add this to organize your fixed strategies
         self.fixed_strategies = [
         self.always_cooperate,
         self.always_defect,
@@ -365,7 +365,47 @@ class IPDGeneticAlgorithm:
             plt.close()
         
         print("Grid search visualizations saved.")
-
+    def plot_noise_results(self, results_df):
+        """Create visualizations of noise experiment results
+    
+    Args:
+        results_df (pd.DataFrame): DataFrame with experiment results
+    """
+        import matplotlib.pyplot as plt
+    
+        # Plot noise level vs. best fitness for each memory length
+        plt.figure(figsize=(10, 6))
+    
+        for mem_length in [1, 2]:
+            subset = results_df[results_df['memory_length'] == mem_length]
+            plt.plot(subset['noise_level'], subset['best_fitness'], 
+                marker='o', linewidth=2, label=f'Memory-{mem_length}')
+    
+        plt.xlabel('Noise Level')
+        plt.ylabel('Best Fitness Score')
+        plt.title('Effect of Noise on Strategy Performance')
+        plt.legend()
+        plt.grid(True, alpha=0.3)
+        plt.savefig('noise_vs_fitness.png')
+    
+        # Plot the performance gap between Memory-1 and Memory-2 at different noise levels
+        plt.figure(figsize=(10, 6))
+    
+    # Group by noise level and calculate difference between Memory-2 and Memory-1
+        noise_summary = results_df.pivot_table(
+        index='noise_level', 
+        columns='memory_length', 
+        values='best_fitness'
+        )
+    
+        performance_gap = noise_summary[2] - noise_summary[1]
+        plt.bar(noise_summary.index, performance_gap, width=0.01)
+    
+        plt.xlabel('Noise Level')
+        plt.ylabel('Performance Gap (Memory-2 - Memory-1)')
+        plt.title('Memory-2 Advantage Over Memory-1 at Different Noise Levels')
+        plt.grid(True, alpha=0.3)
+        plt.savefig('memory_advantage_vs_noise.png')
 
     def plot_performance(self):
         """Plot the performance of the GA over generations"""
@@ -440,6 +480,67 @@ class IPDGeneticAlgorithm:
     
         return best_genome, best_fitness
     
+    def run_noise_experiments(self, noise_levels=[0, 0.01, 0.05, 0.1, 0.2]):
+        """Run experiments with different noise levels
+    
+    Args:
+        noise_levels (List[float]): Noise levels to test
+    
+    Returns:
+        pd.DataFrame: Results of experiments
+    """
+        results = []
+    
+        for noise in noise_levels:
+            print(f"\nRunning experiment with noise level: {noise}")
+        
+        # Create GAs with Memory-1 and Memory-2
+            ga_mem1 = IPDGeneticAlgorithm(
+            pop_size=100,
+            generations=50,
+            mutation_rate=0.05,
+            crossover_rate=0.8,
+            memory_length=1,
+            noise_level=noise
+        )
+        
+            ga_mem2 = IPDGeneticAlgorithm(
+            pop_size=100,
+            generations=50,
+            mutation_rate=0.05,
+            crossover_rate=0.8,
+            memory_length=2,
+            noise_level=noise
+        )
+        
+            # Evolve strategies
+            best_genome_mem1, best_fitness_mem1 = ga_mem1.evolve()
+            best_genome_mem2, best_fitness_mem2 = ga_mem2.evolve()
+        
+            # Save results
+            results.append({
+            'noise_level': noise,
+            'memory_length': 1,
+            'best_fitness': best_fitness_mem1,
+            'final_avg_fitness': ga_mem1.avg_fitness_history[-1],
+            'best_genome': best_genome_mem1
+        })
+        
+            results.append({
+            'noise_level': noise,
+            'memory_length': 2,
+            'best_fitness': best_fitness_mem2,
+            'final_avg_fitness': ga_mem2.avg_fitness_history[-1],
+            'best_genome': best_genome_mem2
+        })
+        
+    # Convert to DataFrame and analyze
+        results_df = pd.DataFrame(results)
+    
+    # Plot results
+        self.plot_noise_results(results_df)
+    
+        return results_df
 
     def analyze_strategy(self, genome):
         """Analyze a strategy and return a human-readable description
@@ -470,86 +571,61 @@ class IPDGeneticAlgorithm:
     
         return strategy_description
 
+# Replace your play_game method with this one
     def play_game(self, genome, opponent_strategy, rounds=200):
-        """Play a game of Iterated Prisoner's Dilemma
+        """Play a game of Iterated Prisoner's Dilemma with communication noise
     
-        Args:
-            genome (List[int]): Strategy genome to evaluate
-            opponent_strategy: Function that takes histories and returns a move
-            rounds (int): Number of rounds to play
-        
-        Returns:
-            Tuple[int, int]: (my_score, opponent_score)
-        """
-        my_history = []
-        opponent_history = []
+    Args:
+        genome (List[int]): Strategy genome to evaluate
+        opponent_strategy: Function that takes histories and returns a move
+        rounds (int): Number of rounds to play
+    
+    Returns:
+        Tuple[int, int]: (my_score, opponent_score)
+    """
+        my_history = []  # What I think opponent did
+        opponent_history = []  # What opponent thinks I did
+        actual_my_history = []  # What I actually did
+        actual_opponent_history = []  # What opponent actually did
         my_score = 0
         opponent_score = 0
     
         for _ in range(rounds):
-            # Get moves
-            my_move = self.interpret_strategy(genome, opponent_history, my_history)
-            opponent_move = opponent_strategy(my_history, opponent_history)
+            # Get moves based on perceived history
+            my_move = self.interpret_strategy(genome, my_history, actual_my_history)
+            opponent_move = opponent_strategy(opponent_history, actual_opponent_history)
         
-            # Update histories
-            my_history.append(my_move)
-            opponent_history.append(opponent_move)
+            # Record actual moves
+            actual_my_history.append(my_move)
+            actual_opponent_history.append(opponent_move)
         
-            # Update scores based on payoff matrix
+            # Apply noise - moves might be misinterpreted
+            perceived_my_move = my_move
+            if random.random() < self.noise_level:
+                perceived_my_move = 'D' if my_move == 'C' else 'C'
+            
+            perceived_opponent_move = opponent_move
+            if random.random() < self.noise_level:
+                perceived_opponent_move = 'D' if opponent_move == 'C' else 'C'
+        
+            # Update histories with what each player perceives
+            opponent_history.append(perceived_my_move)  # What opponent thinks I did
+            my_history.append(perceived_opponent_move)  # What I think opponent did
+        
+            # Update scores based on what actually happened
             payoff = self.payoff_matrix[(my_move, opponent_move)]
             my_score += payoff[0]
             opponent_score += payoff[1]
-        
+    
         return my_score, opponent_score
 
 
 
 if __name__ == "__main__":
-    # Choose whether to run with default parameters or use grid search
-    run_grid_search = True  # Set to False to skip grid search
+    # Run noise experiments for Part 2
+    print("\nRunning Noise Experiments for Part 2:")
+    ga = IPDGeneticAlgorithm()
+    results_df = ga.run_noise_experiments()
     
-    if run_grid_search:
-        print("\nRunning Grid Search to find optimal parameters:")
-        # Create a temporary instance to run the grid search
-        temp_ga = IPDGeneticAlgorithm()
-        best_params = temp_ga.grid_search()
-        
-        # Run with best parameters
-        top_params = best_params.iloc[0]
-        print("\nRunning final evolution with best parameters:")
-        print(top_params)
-        
-        ga_best = IPDGeneticAlgorithm(
-            pop_size=int(top_params['pop_size']),
-            generations=100,  # Use more generations for final run
-            mutation_rate=top_params['mutation_rate'],
-            crossover_rate=top_params['crossover_rate'],
-            memory_length=int(top_params['memory_length'])
-        )
-        
-        best_genome, best_fitness = ga_best.evolve()
-        ga_best.plot_performance()
-    else:
-        # Run with Memory-1 strategies
-        print("\nEvolving Memory-1 Strategies:")
-        ga_mem1 = IPDGeneticAlgorithm(
-            pop_size=100,
-            generations=50,
-            mutation_rate=0.05,
-            crossover_rate=0.8,
-            memory_length=1
-        )
-        best_genome_mem1, best_fitness_mem1 = ga_mem1.evolve()
-        ga_mem1.plot_performance()
-        
-        # Run with Memory-2 strategies
-        print("\nEvolving Memory-2 Strategies:")
-        ga_mem2 = IPDGeneticAlgorithm(
-            pop_size=100,
-            generations=50,
-            mutation_rate=0.05,
-            crossover_rate=0.8,
-            memory_length=2
-        )
-        best_genome_mem2, best_fitness_mem2 = ga_mem2.evolve()
-        ga_mem2.plot_performance()
+    # Save results to CSV
+    results_df.to_csv('ipd_noise_experiment_results.csv', index=False)
