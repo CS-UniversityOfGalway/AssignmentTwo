@@ -1,35 +1,27 @@
-## Changelog for CT421 Project 1 Evolutionary Search
-### 9/2/25
-#### Tim
-- Created readme and changelog markdown files
-- Split the provided TSP Dataset file into 3 separate TSP files in tsp_datasets
-- Removed the temp test TSP file
-- Created a basic starting point for the readme
-- Fixed spelling mistake in genetic algorithm file name
-- Improved folder access if the tsp files, now can be accessed directly if the search is run in the src folder or outside it
-- Fixed the plot function, now the performance is plotted properly
-- Now printing the best path to console
-- Removed redundant function in tsp loader
+## Changelog for CT421 Project 2 Evolutionary Game Theory
+### 5/3/25
+#### Alasdair
+- Renamed class to reflect new project.
+- Fixed the strategy implementation.
+- Suspicious tit for tat implemented.
 
-### 14/2/25
-#### Tim
-- Removed redundant comments
-- Added function doc strings
-- Applied linting (Pylint) across genetic_algorithm.py
-- Added crossover rate
+### 7/3/25
+#### Alasdair
+- Redone the creation of initial population.
+- Full interpretation strategy added.
+- Single point crossover big flip structure added.
 
-### 15/2/25
-#### Tim
-- Added ability to grid search a range of parameters
-- Multiple runs are now made
-- Results are output to a csv file
-- Refactoring of main entry function
-- Integrated TSPLoader aspects into main function
-- Optimization and logic fixes
-- Implemented a chance for Inversion swapping to be used
+### 9/3/25
+#### Alasdair
+- Implemented new getindividual and evolve methods.
+- Removed specific tsp functions left over from last project.
 
-### 16/2/25
+### 15/3/25
+#### Alasdair
+- Added grid search function.
+
 #### Tim
-- Final changes to Readme
-- Finalisation of requirement.txt
-- Final linting of genetic_algorithm.py
+- Updated ReadME (still work needed)
+- Removed TSP Datasets as they are not needed here
+- Updated changelog
+- Fixed mispelling in the main GA script name
