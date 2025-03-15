@@ -25,3 +25,6 @@
 - Removed TSP Datasets as they are not needed here
 - Updated changelog
 - Fixed mispelling in the main GA script name
+
+#### Alasdair
+- Implemented Part 2 code

@@ -623,9 +623,8 @@ if __name__ == "__main__":
     # Set random seed for reproducibility
     random.seed(42)
     
-    # PART 1: Original grid search and evolution - UNCHANGED from your original code
+    # PART 1: Original grid search and evolution
     print("\n========== PART 1: EVOLUTION AGAINST FIXED STRATEGIES ==========")
-    # Choose whether to run with default parameters or use grid search
     run_grid_search = True  # Set to False to skip grid search
 
     if run_grid_search:

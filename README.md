@@ -16,7 +16,7 @@ This project implements a genetic algorithm to evolve strategies for the Iterate
 
 Simply execute the main script:
 ```
-python ipd_genetic_algorithm.py
+python genetic_algorithm.py
 ```
 
 The code will run both Part 1 and Part 2 sequentially. A random seed (42) is set at the beginning to ensure reproducible results.
