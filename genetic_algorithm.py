@@ -1,20 +1,19 @@
 """
-Genetic Algorithm TSP Solver for CT421 Project 1
+Genetic Algorithm IPD Solver for CT421 Project 2
 
 Some general overview comments:
-- Tournament selection picks two good parents
-- Crossover creates new tour from parents
-- Mutation MIGHT make a small change to that new tour
-- This new tour (mutated or not) joins the population
+- Tournament selection picks two good strategies (parents)
+- Crossover creates a new strategy from the parents
+- Mutation MIGHT make a small change to that new strategy
+- This new strategy (mutated or not) joins the population
 
 Classes:
-    GeneticAlgorithm: Main class implementing the genetic algorithm solver
+    IPDGeneticAlgorithm: Main class implementing the genetic algorithm solver for the Iterated Prisoner's Dilemma
 """
 import random
 import itertools
 import time
-from typing import List, Tuple
-import tsplib95
+from typing import List
 import matplotlib.pyplot as plt
 import pandas as pd
 
