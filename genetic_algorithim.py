@@ -232,7 +232,139 @@ class IPDGeneticAlgorithm:
 
 
 
+    def grid_search(self):
+        """
+        Perform a grid search to find optimal parameters for the IPD genetic algorithm.
+        Tests combinations of population size, mutation rate, and crossover rate.
+        """
+        
+        # Define parameter ranges to search
+        param_grid = {
+            'pop_size': [50, 100],
+            'mutation_rate': [0.01, 0.05, 0.1],
+            'crossover_rate': [0.7, 0.8, 0.9],
+            'memory_length': [1, 2]  # Test both memory lengths
+        }
+        
+        # Generate all combinations of parameters
+        param_combinations = list(itertools.product(
+            param_grid['pop_size'],
+            param_grid['mutation_rate'],
+            param_grid['crossover_rate'],
+            param_grid['memory_length']
+        ))
+        
+        # Set up results tracking
+        results = []
+        
+        # Fixed number of generations for all runs
+        generations = 30  # Using fewer generations to make grid search faster
+        
+        print(f"Running grid search with {len(param_combinations)} parameter combinations")
+        start_time = time.time()
+        
+        # Test each parameter combination
+        for i, (pop_size, mutation_rate, crossover_rate, memory_length) in enumerate(param_combinations):
+            print(f"\nTesting combination {i+1}/{len(param_combinations)}:")
+            print(f"Pop size: {pop_size}, Mutation rate: {mutation_rate}, Crossover rate: {crossover_rate}, Memory length: {memory_length}")
+            
+            # Initialize and run the GA with these parameters
+            ga = IPDGeneticAlgorithm(
+                pop_size=pop_size,
+                generations=generations,
+                mutation_rate=mutation_rate,
+                crossover_rate=crossover_rate,
+                memory_length=memory_length
+            )
+            
+            best_genome, best_fitness = ga.evolve()
+            
+            # Save results
+            results.append({
+                'pop_size': pop_size,
+                'mutation_rate': mutation_rate,
+                'crossover_rate': crossover_rate,
+                'memory_length': memory_length,
+                'best_fitness': best_fitness,
+                'final_avg_fitness': ga.avg_fitness_history[-1]
+            })
+        
+        end_time = time.time()
+        print(f"Grid search completed in {end_time - start_time:.2f} seconds")
+        
+        # Convert results to DataFrame and sort by best fitness
+        results_df = pd.DataFrame(results)
+        results_df = results_df.sort_values('best_fitness', ascending=False)
+        
+        print("\nTop 5 parameter combinations:")
+        print(results_df.head(5).to_string(index=False))
+        
+        # Save results to CSV
+        results_df.to_csv('ipd_grid_search_results.csv', index=False)
+        
+        # Visualize results
+        self.plot_grid_search_results(results_df)
+        
+        return results_df
 
+    def plot_grid_search_results(self, results_df):
+        """
+        Create visualizations of grid search results
+        
+        Args:
+            results_df (pd.DataFrame): DataFrame with grid search results
+        """
+        import matplotlib.pyplot as plt
+        
+        # Plot 1: Scatter plot of mutation rate vs fitness, colored by population size
+        plt.figure(figsize=(10, 6))
+        for pop_size in results_df['pop_size'].unique():
+            subset = results_df[results_df['pop_size'] == pop_size]
+            plt.scatter(subset['mutation_rate'], subset['best_fitness'], 
+                       label=f'Pop size: {pop_size}', s=50, alpha=0.7)
+        
+        plt.xlabel('Mutation Rate')
+        plt.ylabel('Best Fitness Score')
+        plt.title('Effect of Mutation Rate on Best Fitness')
+        plt.legend()
+        plt.grid(True, alpha=0.3)
+        plt.savefig('grid_search_mutation_rate.png')
+        plt.close()
+        
+        # Plot 2: Grouped bar chart for memory length comparison
+        mem_group = results_df.groupby('memory_length').agg({'best_fitness': ['mean', 'max']})
+        mem_group.columns = ['Mean Fitness', 'Max Fitness']
+        mem_group.plot(kind='bar', figsize=(8, 5))
+        plt.xlabel('Memory Length')
+        plt.ylabel('Fitness Score')
+        plt.title('Impact of Memory Length on Strategy Performance')
+        plt.grid(True, alpha=0.3)
+        plt.savefig('grid_search_memory_length.png')
+        plt.close()
+        
+        # Plot 3: Heatmap of crossover rate vs mutation rate (for memory_length=1)
+        plt.figure(figsize=(8, 6))
+        for mem_length in [1, 2]:
+            subset = results_df[results_df['memory_length'] == mem_length]
+            pivot = subset.pivot_table(
+                index='mutation_rate',
+                columns='crossover_rate',
+                values='best_fitness',
+                aggfunc='mean'
+            )
+            
+            plt.figure(figsize=(8, 6))
+            plt.imshow(pivot, cmap='viridis', aspect='auto', interpolation='nearest')
+            plt.colorbar(label='Average Best Fitness')
+            plt.xticks(range(len(pivot.columns)), pivot.columns)
+            plt.yticks(range(len(pivot.index)), pivot.index)
+            plt.xlabel('Crossover Rate')
+            plt.ylabel('Mutation Rate')
+            plt.title(f'Parameter Interaction Heatmap (Memory Length = {mem_length})')
+            plt.savefig(f'grid_search_heatmap_mem{mem_length}.png')
+            plt.close()
+        
+        print("Grid search visualizations saved.")
 
 
     def plot_performance(self):
@@ -373,26 +505,51 @@ class IPDGeneticAlgorithm:
 
 
 if __name__ == "__main__":
-    # Run with Memory-1 strategies
-    print("\nEvolving Memory-1 Strategies:")
-    ga_mem1 = IPDGeneticAlgorithm(
-        pop_size=100,
-        generations=50,
-        mutation_rate=0.05,
-        crossover_rate=0.8,
-        memory_length=1
-    )
-    best_genome_mem1, best_fitness_mem1 = ga_mem1.evolve()
-    ga_mem1.plot_performance()
+    # Choose whether to run with default parameters or use grid search
+    run_grid_search = True  # Set to False to skip grid search
     
-    # Run with Memory-2 strategies
-    print("\nEvolving Memory-2 Strategies:")
-    ga_mem2 = IPDGeneticAlgorithm(
-        pop_size=100,
-        generations=50,
-        mutation_rate=0.05,
-        crossover_rate=0.8,
-        memory_length=2
-    )
-    best_genome_mem2, best_fitness_mem2 = ga_mem2.evolve()
-    ga_mem2.plot_performance()
+    if run_grid_search:
+        print("\nRunning Grid Search to find optimal parameters:")
+        # Create a temporary instance to run the grid search
+        temp_ga = IPDGeneticAlgorithm()
+        best_params = temp_ga.grid_search()
+        
+        # Run with best parameters
+        top_params = best_params.iloc[0]
+        print("\nRunning final evolution with best parameters:")
+        print(top_params)
+        
+        ga_best = IPDGeneticAlgorithm(
+            pop_size=int(top_params['pop_size']),
+            generations=100,  # Use more generations for final run
+            mutation_rate=top_params['mutation_rate'],
+            crossover_rate=top_params['crossover_rate'],
+            memory_length=int(top_params['memory_length'])
+        )
+        
+        best_genome, best_fitness = ga_best.evolve()
+        ga_best.plot_performance()
+    else:
+        # Run with Memory-1 strategies
+        print("\nEvolving Memory-1 Strategies:")
+        ga_mem1 = IPDGeneticAlgorithm(
+            pop_size=100,
+            generations=50,
+            mutation_rate=0.05,
+            crossover_rate=0.8,
+            memory_length=1
+        )
+        best_genome_mem1, best_fitness_mem1 = ga_mem1.evolve()
+        ga_mem1.plot_performance()
+        
+        # Run with Memory-2 strategies
+        print("\nEvolving Memory-2 Strategies:")
+        ga_mem2 = IPDGeneticAlgorithm(
+            pop_size=100,
+            generations=50,
+            mutation_rate=0.05,
+            crossover_rate=0.8,
+            memory_length=2
+        )
+        best_genome_mem2, best_fitness_mem2 = ga_mem2.evolve()
+        ga_mem2.plot_performance()
